@@ -246,6 +246,31 @@
     .mini-btn.del  { border-color: var(--red);   color: var(--red); }
     .mini-btn.move { border-color: var(--dim);   color: var(--dim); }
 
+    /* HISTORY ITEM — кнопка удаления справа */
+    .history-del-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--dim);
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: inherit;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        margin-left: 8px;
+        flex-shrink: 0;
+        line-height: 1;
+        transition: border-color 0.15s, color 0.15s;
+    }
+    .history-del-btn:active {
+        border-color: var(--red);
+        color: var(--red);
+    }
+
     /* INPUTS */
     input {
         width: 100%;
@@ -372,6 +397,76 @@
         min-height: 36px;
     }
 
+    /* HISTORY DELETE MODAL — карточка записи + галочки */
+    .modal .history-summary {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 14px;
+    }
+    .modal .history-summary .h-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 4px;
+        word-break: break-word;
+    }
+    .modal .history-summary .h-meta {
+        font-size: 12px;
+        color: var(--dim);
+    }
+    .modal .history-summary .h-amount {
+        font-size: 15px;
+        font-weight: bold;
+        margin-top: 6px;
+    }
+    .modal .history-summary .h-amount.pos { color: var(--green); }
+    .modal .history-summary .h-amount.neg { color: var(--red); }
+
+    .modal .checkbox-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        user-select: none;
+        min-height: var(--min-touch);
+    }
+    .modal .checkbox-row.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    .modal .checkbox-row input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin: 0;
+        margin-top: 1px;
+        flex-shrink: 0;
+        accent-color: var(--blue);
+        cursor: pointer;
+    }
+    .modal .checkbox-row.disabled input[type="checkbox"] {
+        cursor: not-allowed;
+    }
+    .modal .checkbox-row .cb-label {
+        flex: 1 1 auto;
+        font-size: 14px;
+        color: var(--text);
+        line-height: 1.4;
+    }
+    .modal .checkbox-row .cb-hint {
+        display: block;
+        font-size: 11px;
+        color: var(--dim);
+        margin-top: 3px;
+        line-height: 1.4;
+    }
+
     /* EMPTY / PROGRESS / SUMMARY */
     .empty-state {
         text-align: center;
@@ -455,7 +550,6 @@
 <script>
 'use strict';
 // === ЧАСТЬ 1 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 2. ===
-
 /* =========================================================================
    ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ОШИБОК
    ========================================================================= */
@@ -495,6 +589,11 @@ var FILTERS = [
     { id: TYPE.EXPENSE,  label: 'Расходы'  },
     { id: TYPE.TRANSFER, label: 'Переводы' }
 ];
+
+/* Префиксы описаний, по которым понимаем, что это операция возврата долга */
+var DEBT_FULL_PREFIX      = 'Возврат долга: ';
+var DEBT_PARTIAL_PREFIX   = 'Частичный возврат: ';
+var DEBT_PARTIAL_MARKER   = ' (остаток ';
 
 /* =========================================================================
    УТИЛИТЫ
@@ -544,6 +643,27 @@ function formatDate(iso) {
     catch (_) { return d.toDateString(); }
 }
 
+/* Разбор описания записи истории — возврат ли это долга, кому и сколько */
+function parseDebtReturn(desc) {
+    if (typeof desc !== 'string') return null;
+
+    if (desc.indexOf(DEBT_FULL_PREFIX) === 0) {
+        var fullName = desc.slice(DEBT_FULL_PREFIX.length);
+        if (!fullName) return null;
+        return { kind: 'full', to: fullName };
+    }
+
+    if (desc.indexOf(DEBT_PARTIAL_PREFIX) === 0) {
+        var rest = desc.slice(DEBT_PARTIAL_PREFIX.length);
+        var parenIdx = rest.indexOf(DEBT_PARTIAL_MARKER);
+        var partName = (parenIdx > 0) ? rest.slice(0, parenIdx) : rest;
+        if (!partName) return null;
+        return { kind: 'partial', to: partName };
+    }
+
+    return null;
+}
+
 /* =========================================================================
    СОСТОЯНИЕ
    ========================================================================= */
@@ -587,6 +707,11 @@ function migrate(raw) {
     s.debts   = Array.isArray(raw.debts)   ? raw.debts.filter(isValidDebt)      : [];
     s.plans   = Array.isArray(raw.plans)   ? raw.plans.filter(isValidPlan)      : [];
     s.history = Array.isArray(raw.history) ? raw.history.filter(isValidHistory) : [];
+
+    // Досоздаём id для старых записей истории, если их нет
+    for (var i = 0; i < s.history.length; i++) {
+        if (!s.history[i].id) s.history[i].id = uid();
+    }
     return s;
 }
 
@@ -725,8 +850,9 @@ function renderBalance(c) {
                         '<div class="item-name">' + (esc(h.desc) || 'Без описания') + '</div>' +
                         '<div class="item-sub">' + formatDateTime(h.date) + '</div>' +
                     '</div>' +
-                    '<div class="item-right">' +
+                    '<div class="item-right" style="display:flex; align-items:center;">' +
                         '<div class="item-amount" style="color:' + color + '">' + sign + fmt(h.amount) + '</div>' +
+                        '<button type="button" class="history-del-btn" data-action="history-del" data-id="' + esc(h.id) + '" aria-label="Удалить запись">✕</button>' +
                     '</div>' +
                 '</div>';
         }
@@ -780,6 +906,7 @@ function doOp(sign) {
             function () {
                 state.balance += delta;
                 state.history.unshift({
+                    id: uid(),
                     date: new Date().toISOString(),
                     type: sign > 0 ? TYPE.INCOME : TYPE.EXPENSE,
                     desc: desc,
@@ -795,6 +922,7 @@ function doOp(sign) {
 
     state.balance += delta;
     state.history.unshift({
+        id: uid(),
         date: new Date().toISOString(),
         type: sign > 0 ? TYPE.INCOME : TYPE.EXPENSE,
         desc: desc,
@@ -910,10 +1038,11 @@ function payDebt(id, amount) {
 
     var isFull = d.amount <= 0.0001;
     var descText = isFull
-        ? 'Возврат долга: ' + d.to
-        : 'Частичный возврат: ' + d.to + ' (остаток ' + fmt(d.amount) + ')';
+        ? DEBT_FULL_PREFIX + d.to
+        : DEBT_PARTIAL_PREFIX + d.to + DEBT_PARTIAL_MARKER + fmt(d.amount) + ')';
 
     state.history.unshift({
+        id: uid(),
         date: new Date().toISOString(),
         type: TYPE.TRANSFER,
         desc: descText,
@@ -1093,6 +1222,7 @@ function fundPlan(id) {
     state.balance -= amt;
     p.current += amt;
     state.history.unshift({
+        id: uid(),
         date: new Date().toISOString(),
         type: TYPE.TRANSFER,
         desc: 'Вклад в цель: ' + p.name,
@@ -1125,6 +1255,7 @@ function delPlan(id) {
             state.balance += refund;
             if (refund > 0) {
                 state.history.unshift({
+                    id: uid(),
                     date: new Date().toISOString(),
                     type: TYPE.TRANSFER,
                     desc: 'Отмена цели: ' + p.name + ' (возврат)',
@@ -1261,6 +1392,7 @@ function resetAll() {
    ========================================================================= */
 var modalVisible = false;
 var _confirmCallback = null;
+var _delHistState = { id: null, refund: false, restore: false };
 
 function showModal(html) {
     var content = document.getElementById('modalContent');
@@ -1270,7 +1402,10 @@ function showModal(html) {
     modalVisible = true;
 
     requestAnimationFrame(function () {
-        var inp = content.querySelector('input:not([type=file])');
+        // Фокусим только текстовые инпуты, не чекбоксы
+        var inp = content.querySelector(
+            'input:not([type="checkbox"]):not([type="radio"]):not([type="file"])'
+        );
         if (inp) { try { inp.focus(); } catch (_) {} }
     });
 }
@@ -1282,6 +1417,7 @@ function hideModal() {
     content.innerHTML = '';
     modalVisible = false;
     _confirmCallback = null;
+    _delHistState = { id: null, refund: false, restore: false };
 }
 
 /* =========================================================================
@@ -1368,18 +1504,202 @@ function debtQuickFill(amount) {
 }
 
 /* =========================================================================
+   DELETE HISTORY ITEM — удаление записи из истории с галочками
+   ========================================================================= */
+function showDeleteHistoryItem(id, opts) {
+    opts = opts || {};
+
+    var item = null;
+    for (var i = 0; i < state.history.length; i++) {
+        if (state.history[i].id === id) { item = state.history[i]; break; }
+    }
+    if (!item) return;
+
+    var refundVal  = (typeof opts.refund  === 'boolean') ? opts.refund  : false;
+    var restoreVal = (typeof opts.restore === 'boolean') ? opts.restore : false;
+
+    // Если «восстановить долг» включено, но «вернуть баланс» — нет, сбрасываем
+    if (!refundVal && restoreVal) restoreVal = false;
+
+    // Запоминаем состояние в модуле — на случай неожиданных вызовов
+    _delHistState.id = id;
+    _delHistState.refund = refundVal;
+    _delHistState.restore = restoreVal;
+
+    var isPos = item.amount > 0;
+    var sign  = isPos ? '+' : '';
+    var amountClass = isPos ? 'pos' : 'neg';
+
+    // Проверяем, является ли запись возвратом долга
+    var debtInfo = parseDebtReturn(item.desc);
+    var canRestoreDebt = !!debtInfo;
+
+    // Подсказка под «вернуть баланс»
+    var balanceHint;
+    if (refundVal) {
+        var newBalance = state.balance - item.amount;
+        balanceHint = 'Новый баланс: ' + fmt(newBalance);
+    } else {
+        balanceHint = 'Баланс не изменится';
+    }
+
+    // Подсказка под «восстановить долг»
+    var restoreHint = '';
+    if (canRestoreDebt) {
+        if (!refundVal) {
+            restoreHint = 'Сначала включи «Вернуть деньги на баланс»';
+        } else {
+            var matches = state.debts.filter(function (d) { return d.to === debtInfo.to; });
+            if (matches.length === 1) {
+                restoreHint = 'Прибавится к долгу «' + debtInfo.to + '» (' +
+                    fmt(matches[0].amount) + ' + ' + fmt(Math.abs(item.amount)) + ')';
+            } else if (matches.length === 0) {
+                restoreHint = 'Создастся новый долг «' + debtInfo.to + '» на ' + fmt(Math.abs(item.amount));
+            } else {
+                restoreHint = 'Найдено несколько долгов «' + debtInfo.to + '» — создастся новый';
+            }
+        }
+    }
+
+    var refundRow =
+        '<label class="checkbox-row" for="cbRefund">' +
+            '<input type="checkbox" id="cbRefund"' + (refundVal ? ' checked' : '') + '>' +
+            '<span class="cb-label">' +
+                'Вернуть деньги на баланс' +
+                '<span class="cb-hint">' + esc(balanceHint) + '</span>' +
+            '</span>' +
+        '</label>';
+
+    var restoreRow = '';
+    if (canRestoreDebt) {
+        var restoreDisabled = !refundVal;
+        restoreRow =
+            '<label class="checkbox-row' + (restoreDisabled ? ' disabled' : '') + '" for="cbRestoreDebt">' +
+                '<input type="checkbox" id="cbRestoreDebt"' +
+                    (restoreVal ? ' checked' : '') +
+                    (restoreDisabled ? ' disabled' : '') + '>' +
+                '<span class="cb-label">' +
+                    'Восстановить долг «' + esc(debtInfo.to) + '»' +
+                    '<span class="cb-hint">' + esc(restoreHint) + '</span>' +
+                '</span>' +
+            '</label>';
+    }
+
+    showModal(
+        '<h3>Удалить операцию?</h3>' +
+        '<div class="history-summary">' +
+            '<div class="h-title">' + (esc(item.desc) || 'Без описания') + '</div>' +
+            '<div class="h-meta">' + formatDateTime(item.date) + '</div>' +
+            '<div class="h-amount ' + amountClass + '">' + sign + fmt(item.amount) + '</div>' +
+        '</div>' +
+        refundRow +
+        restoreRow +
+        '<div class="btn-row" style="margin-top:12px;">' +
+            '<button type="button" class="btn-full btn-secondary" data-action="close-modal">Отмена</button>' +
+            '<button type="button" class="btn-full btn-danger" data-action="history-confirm-del" ' +
+                'data-id="' + esc(id) + '" ' +
+                'data-refund="' + (refundVal ? '1' : '0') + '" ' +
+                'data-restore="' + (restoreVal ? '1' : '0') + '">Удалить</button>' +
+        '</div>'
+    );
+}
+
+function handleRefundToggle(checked) {
+    var id = _delHistState.id;
+    if (!id) return;
+
+    // При снятии «вернуть баланс» — сбрасываем «восстановить долг»
+    var restore = _delHistState.restore;
+    if (!checked) restore = false;
+
+    showDeleteHistoryItem(id, { refund: checked, restore: restore });
+}
+
+function handleRestoreToggle(checked) {
+    var id = _delHistState.id;
+    if (!id) return;
+
+    // Если «вернуть баланс» выключен — игнорируем
+    if (!_delHistState.refund) return;
+
+    showDeleteHistoryItem(id, { refund: true, restore: checked });
+}
+
+function deleteHistoryItem(id, refund, restore) {
+    var item = null;
+    for (var i = 0; i < state.history.length; i++) {
+        if (state.history[i].id === id) { item = state.history[i]; break; }
+    }
+    if (!item) return;
+
+    // 1. Корректируем баланс (на противоположное значение)
+    if (refund) {
+        state.balance -= item.amount;
+    }
+
+    // 2. Восстанавливаем долг (если применимо)
+    if (restore && refund) {
+        var debtInfo = parseDebtReturn(item.desc);
+        if (debtInfo) {
+            var restoreAmount = Math.abs(item.amount);
+            var matches = state.debts.filter(function (d) { return d.to === debtInfo.to; });
+
+            if (matches.length === 1) {
+                // Ровно один — прибавляем к нему
+                matches[0].amount += restoreAmount;
+            } else {
+                // Ноль или несколько — создаём новый долг
+                state.debts.push({
+                    id: uid(),
+                    to: debtInfo.to,
+                    amount: restoreAmount,
+                    createdAt: new Date().toISOString()
+                });
+            }
+        }
+    }
+
+    // 3. Удаляем запись из истории
+    state.history = state.history.filter(function (h) { return h.id !== id; });
+
+    saveState();
+    hideModal();
+
+    // 4. Перерисовываем текущую вкладку
+    var c = document.getElementById('mainContent');
+    if (currentTab === 'balance')      renderBalance(c);
+    else if (currentTab === 'debts')   renderDebts(c);
+    else if (currentTab === 'plans')   renderPlans(c);
+    else if (currentTab === 'settings') renderSettings(c);
+}
+
+// === ЧАСТЬ 4 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 5. ===
+/* =========================================================================
    ДЕЛЕГИРОВАНИЕ СОБЫТИЙ
    ========================================================================= */
 var ACTIONS = {
     'op':          function (el) { doOp(Number(el.getAttribute('data-sign'))); },
     'filter':      function (el) { setHistoryFilter(el.getAttribute('data-filter')); },
 
+    /* История — удаление конкретной записи */
+    'history-del': function (el) {
+        showDeleteHistoryItem(el.getAttribute('data-id'), { refund: false, restore: false });
+    },
+    'history-confirm-del': function (el) {
+        var id = el.getAttribute('data-id');
+        var refund  = el.getAttribute('data-refund')  === '1';
+        var restore = el.getAttribute('data-restore') === '1';
+        deleteHistoryItem(id, refund, restore);
+    },
+
+    /* Долги */
     'add-debt':    function ()   { showAddDebt(); },
     'edit-debt':   function (el) { editDebt(el.getAttribute('data-id')); },
     'save-debt':   function (el) { var id = el.getAttribute('data-id'); saveDebt(id || null); },
     'pay-debt':    function (el) { showPayDebt(el.getAttribute('data-id')); },
     'del-debt':    function (el) { delDebt(el.getAttribute('data-id')); },
 
+    /* Планы */
     'add-plan':    function ()   { showAddPlan(); },
     'edit-plan':   function (el) { editPlan(el.getAttribute('data-id')); },
     'save-plan':   function (el) { var id = el.getAttribute('data-id'); savePlan(id || null); },
@@ -1388,13 +1708,17 @@ var ACTIONS = {
     'save-fund':   function (el) { fundPlan(el.getAttribute('data-id')); },
     'del-plan':    function (el) { delPlan(el.getAttribute('data-id')); },
 
+    /* Настройки */
     'export':      function ()   { exportData(); },
     'import':      function ()   { var i = document.getElementById('importFile'); if (i) i.click(); },
     'reset':       function ()   { resetAll(); },
     'close-modal': function ()   { hideModal(); },
 
+    /* Модалка подтверждения */
     'confirm-ok':     function ()   { handleConfirmOk(); },
     'confirm-cancel': function ()   { handleConfirmCancel(); },
+
+    /* Модалка возврата долга */
     'debt-quick':     function (el) { debtQuickFill(Number(el.getAttribute('data-amount'))); },
     'debt-pay-confirm': function (el) {
         var id = el.getAttribute('data-id');
@@ -1415,7 +1739,24 @@ function handleClick(e) {
     if (fn) fn(el);
 }
 
+/* Обработчик change для чекбоксов в модалке удаления истории.
+   Отдельно от click — потому что change и click в чекбоксах конфликтуют. */
+function handleModalChange(e) {
+    var t = e.target;
+    if (!t) return;
+
+    if (t.id === 'cbRefund') {
+        handleRefundToggle(!!t.checked);
+        return;
+    }
+    if (t.id === 'cbRestoreDebt') {
+        handleRestoreToggle(!!t.checked);
+        return;
+    }
+}
+
 function bindEvents() {
+    /* Табы */
     document.getElementById('navTabs').addEventListener('click', function (e) {
         var t = e.target;
         if (!t || typeof t.closest !== 'function') return;
@@ -1423,18 +1764,27 @@ function bindEvents() {
         if (btn) switchTab(btn.getAttribute('data-tab'));
     });
 
+    /* Полоса фильтров */
     document.getElementById('filtersBar').addEventListener('click', handleClick);
+
+    /* Контент вкладок */
     document.getElementById('mainContent').addEventListener('click', handleClick);
 
+    /* Модалка: клик (кнопки) */
     document.getElementById('modalOverlay').addEventListener('click', function (e) {
         if (e.target && e.target.id === 'modalOverlay') { hideModal(); return; }
         handleClick(e);
     });
 
+    /* Модалка: change (чекбоксы) */
+    document.getElementById('modalOverlay').addEventListener('change', handleModalChange);
+
+    /* Импорт файла — слушаем на body, потому что input перерисовывается */
     document.body.addEventListener('change', function (e) {
         if (e.target && e.target.id === 'importFile') importData();
     });
 
+    /* Escape — закрыть модалку */
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && modalVisible) hideModal();
     });
