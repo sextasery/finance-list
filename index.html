@@ -20,6 +20,11 @@
         --min-touch: 44px;
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bot: env(safe-area-inset-bottom, 0px);
+
+        /* Категории */
+        --cat-food: #ff9f43;
+        --cat-fun:  #a55eea;
+        --cat-other: #778ca3;
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -246,7 +251,7 @@
     .mini-btn.del  { border-color: var(--red);   color: var(--red); }
     .mini-btn.move { border-color: var(--dim);   color: var(--dim); }
 
-    /* HISTORY ITEM — кнопка удаления справа */
+    /* HISTORY ITEM */
     .history-del-btn {
         background: transparent;
         border: 1px solid transparent;
@@ -270,6 +275,20 @@
         border-color: var(--red);
         color: var(--red);
     }
+
+    /* Бейдж категории в истории */
+    .cat-badge {
+        display: inline-block;
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+        vertical-align: middle;
+        font-weight: 500;
+    }
+    .cat-badge.food  { background: rgba(255,159,67,0.18); color: var(--cat-food); }
+    .cat-badge.fun   { background: rgba(165,94,234,0.18); color: var(--cat-fun); }
+    .cat-badge.other { background: rgba(119,140,163,0.18); color: var(--cat-other); }
 
     /* INPUTS */
     input {
@@ -340,7 +359,6 @@
     }
     .modal h3 { margin: 0 0 15px 0; color: var(--text); font-size: 18px; }
 
-    /* CONFIRM MODAL */
     .modal .confirm-text {
         font-size: 14px;
         line-height: 1.5;
@@ -360,7 +378,6 @@
     }
     .modal .btn-row .btn-full { margin-top: 0; }
 
-    /* DEBT INFO BLOCK */
     .modal .debt-info {
         background: rgba(255,255,255,0.03);
         border: 1px solid var(--border);
@@ -371,14 +388,10 @@
         line-height: 1.6;
         color: var(--dim);
     }
-    .modal .debt-info b {
-        color: var(--text);
-        font-weight: bold;
-    }
+    .modal .debt-info b { color: var(--text); font-weight: bold; }
     .modal .debt-info .remain { color: var(--red); }
     .modal .debt-info .available { color: var(--blue); }
 
-    /* QUICK AMOUNTS */
     .modal .quick-amounts {
         display: flex;
         gap: 6px;
@@ -397,7 +410,6 @@
         min-height: 36px;
     }
 
-    /* HISTORY DELETE MODAL — карточка записи + галочки */
     .modal .history-summary {
         background: rgba(255,255,255,0.03);
         border: 1px solid var(--border);
@@ -437,10 +449,7 @@
         user-select: none;
         min-height: var(--min-touch);
     }
-    .modal .checkbox-row.disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
+    .modal .checkbox-row.disabled { opacity: 0.4; cursor: not-allowed; }
     .modal .checkbox-row input[type="checkbox"] {
         width: 20px;
         height: 20px;
@@ -450,9 +459,7 @@
         accent-color: var(--blue);
         cursor: pointer;
     }
-    .modal .checkbox-row.disabled input[type="checkbox"] {
-        cursor: not-allowed;
-    }
+    .modal .checkbox-row.disabled input[type="checkbox"] { cursor: not-allowed; }
     .modal .checkbox-row .cb-label {
         flex: 1 1 auto;
         font-size: 14px;
@@ -465,6 +472,179 @@
         color: var(--dim);
         margin-top: 3px;
         line-height: 1.4;
+    }
+
+    /* CATEGORY PICKER MODAL */
+    .modal .cat-amount {
+        font-size: 28px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 6px;
+        color: var(--red);
+    }
+    .modal .cat-desc {
+        font-size: 13px;
+        color: var(--dim);
+        text-align: center;
+        margin-bottom: 20px;
+        word-break: break-word;
+    }
+    .modal .cat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .modal .cat-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 15px;
+        font-family: inherit;
+        cursor: pointer;
+        min-height: var(--min-touch);
+        text-align: left;
+        width: 100%;
+    }
+    .modal .cat-btn .cat-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    /* ANALYTICS — таймфреймы */
+    .tf-switcher {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+        padding: 0;
+    }
+    .tf-btn {
+        flex: 1;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--dim);
+        padding: 10px 0;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        min-height: 40px;
+        letter-spacing: 0.5px;
+    }
+    .tf-btn.active {
+        background: var(--blue);
+        color: #000;
+        border-color: var(--blue);
+    }
+
+    /* ANALYTICS — график */
+    .chart-wrap {
+        position: relative;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .chart-canvas {
+        width: 100%;
+        height: 320px;
+        display: block;
+        background: #0a0c10;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        touch-action: manipulation;
+    }
+
+    /* ANALYTICS — tooltip */
+    .chart-tooltip {
+        position: fixed;
+        background: rgba(20, 23, 30, 0.97);
+        border: 1px solid var(--blue);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 12px;
+        color: var(--text);
+        pointer-events: none;
+        z-index: 200;
+        max-width: 260px;
+        line-height: 1.5;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    .chart-tooltip .tt-period {
+        font-weight: bold;
+        font-size: 13px;
+        margin-bottom: 6px;
+        color: var(--blue);
+    }
+    .chart-tooltip .tt-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 2px;
+    }
+    .chart-tooltip .tt-row .tt-label { color: var(--dim); }
+    .chart-tooltip .tt-row .tt-value { font-weight: bold; }
+    .chart-tooltip .tt-row .tt-value.pos { color: var(--green); }
+    .chart-tooltip .tt-row .tt-value.neg { color: var(--red); }
+    .chart-tooltip .tt-sep {
+        border-top: 1px solid var(--border);
+        margin: 6px 0;
+    }
+    .chart-tooltip .tt-cat-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 2px;
+        font-size: 11px;
+    }
+
+    /* ANALYTICS — сводка */
+    .analytics-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 13px;
+        margin-top: 12px;
+    }
+    .analytics-summary .as-row {
+        display: flex;
+        justify-content: space-between;
+        color: var(--dim);
+    }
+    .analytics-summary .as-row b { color: var(--text); font-weight: bold; }
+    .analytics-summary .as-row b.pos { color: var(--green); }
+    .analytics-summary .as-row b.neg { color: var(--red); }
+
+    /* ANALYTICS — категории таблицей */
+    .cat-table {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    .cat-table-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+    }
+    .cat-table-row .ct-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .cat-table-row .ct-name { flex: 1 1 auto; color: var(--text); }
+    .cat-table-row .ct-amount { color: var(--text); font-weight: bold; }
+    .cat-table-row .ct-pct {
+        color: var(--dim);
+        font-size: 11px;
+        min-width: 42px;
+        text-align: right;
     }
 
     /* EMPTY / PROGRESS / SUMMARY */
@@ -536,6 +716,7 @@
     <button class="tab-btn active" data-tab="balance" type="button">Остаток</button>
     <button class="tab-btn" data-tab="debts" type="button">Долги</button>
     <button class="tab-btn" data-tab="plans" type="button">Планы</button>
+    <button class="tab-btn" data-tab="analytics" type="button">📊</button>
     <button class="tab-btn" data-tab="settings" type="button">⚙️</button>
 </div>
 
@@ -546,6 +727,8 @@
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal" id="modalContent"></div>
 </div>
+
+<div class="chart-tooltip" id="chartTooltip" style="display:none;"></div>
 
 <script>
 'use strict';
@@ -576,10 +759,10 @@
 /* =========================================================================
    КОНСТАНТЫ
    ========================================================================= */
-var STORAGE_KEY        = 'fin_shield_v7';
+var STORAGE_KEY        = 'fin_shield_v8';
 var HISTORY_LIMIT      = 5000;
 var HISTORY_VIEW_LIMIT = 50;
-var STATE_VERSION      = 7;
+var STATE_VERSION      = 8;
 
 var TYPE = { INCOME: 'income', EXPENSE: 'expense', TRANSFER: 'transfer' };
 
@@ -590,10 +773,27 @@ var FILTERS = [
     { id: TYPE.TRANSFER, label: 'Переводы' }
 ];
 
-/* Префиксы описаний, по которым понимаем, что это операция возврата долга */
-var DEBT_FULL_PREFIX      = 'Возврат долга: ';
-var DEBT_PARTIAL_PREFIX   = 'Частичный возврат: ';
-var DEBT_PARTIAL_MARKER   = ' (остаток ';
+/* Префиксы описаний для распознавания возвратов долга */
+var DEBT_FULL_PREFIX    = 'Возврат долга: ';
+var DEBT_PARTIAL_PREFIX = 'Частичный возврат: ';
+var DEBT_PARTIAL_MARKER = ' (остаток ';
+
+/* Категории расходов */
+var CATEGORIES = [
+    { id: 'food',  name: 'Еда',              icon: '🍕', cssClass: 'food',  color: '#ff9f43' },
+    { id: 'fun',   name: 'Развлечения',      icon: '🎮', cssClass: 'fun',   color: '#a55eea' },
+    { id: 'other', name: 'Остальные траты',  icon: '💸', cssClass: 'other', color: '#778ca3' }
+];
+
+var DEFAULT_CATEGORY_ID = 'other';
+
+/* Таймфреймы аналитики */
+var TIMEFRAMES = [
+    { id: 'D1', label: 'D1', days: 30,     unit: 'day'   },  // 30 дней
+    { id: 'M1', label: 'M1', days: 365,    unit: 'month' },  // 12 месяцев
+    { id: 'M3', label: 'M3', days: 730,    unit: 'q'     },  // 8 кварталов
+    { id: 'Y1', label: 'Y1', days: 1826,   unit: 'year'  }   // 5 лет
+];
 
 /* =========================================================================
    УТИЛИТЫ
@@ -608,6 +808,14 @@ function fmt(num) {
     var n = (typeof num === 'number' && isFinite(num)) ? Math.round(num) : 0;
     try { return n.toLocaleString('ru-RU') + ' ₽'; }
     catch (_) { return n + ' ₽'; }
+}
+
+function fmtShort(num) {
+    var n = Math.round(num);
+    var abs = Math.abs(n);
+    if (abs >= 1000000) return (n / 1000000).toFixed(1) + 'М';
+    if (abs >= 1000)    return (n / 1000).toFixed(1) + 'К';
+    return String(n);
 }
 
 function uid() {
@@ -643,7 +851,15 @@ function formatDate(iso) {
     catch (_) { return d.toDateString(); }
 }
 
-/* Разбор описания записи истории — возврат ли это долга, кому и сколько */
+/* Категория по id */
+function getCategory(catId) {
+    for (var i = 0; i < CATEGORIES.length; i++) {
+        if (CATEGORIES[i].id === catId) return CATEGORIES[i];
+    }
+    return null;
+}
+
+/* Разбор описания: возврат долга? */
 function parseDebtReturn(desc) {
     if (typeof desc !== 'string') return null;
 
@@ -668,7 +884,14 @@ function parseDebtReturn(desc) {
    СОСТОЯНИЕ
    ========================================================================= */
 function emptyState() {
-    return { version: STATE_VERSION, balance: 0, debts: [], plans: [], history: [] };
+    return {
+        version: STATE_VERSION,
+        balance: 0,
+        debts: [],
+        plans: [],
+        history: [],
+        tf: 'D1'  // выбранный таймфрейм аналитики
+    };
 }
 
 var state = emptyState();
@@ -691,6 +914,16 @@ function loadState() {
     if (!storageAvailable) return;
     try {
         var raw = window.localStorage.getItem(STORAGE_KEY);
+
+        // Миграция со старой версии ключа
+        if (!raw) {
+            var old = window.localStorage.getItem('fin_shield_v7');
+            if (old) {
+                raw = old;
+                console.log('[FinanceShield] migrated from v7 storage');
+            }
+        }
+
         if (!raw) return;
         var parsed = JSON.parse(raw);
         state = migrate(parsed);
@@ -707,12 +940,27 @@ function migrate(raw) {
     s.debts   = Array.isArray(raw.debts)   ? raw.debts.filter(isValidDebt)      : [];
     s.plans   = Array.isArray(raw.plans)   ? raw.plans.filter(isValidPlan)      : [];
     s.history = Array.isArray(raw.history) ? raw.history.filter(isValidHistory) : [];
+    s.tf      = isValidTf(raw.tf) ? raw.tf : 'D1';
 
-    // Досоздаём id для старых записей истории, если их нет
+    // Постобработка истории:
+    // 1) присвоить id, если нет
+    // 2) присвоить категорию, если нет и это расход
     for (var i = 0; i < s.history.length; i++) {
-        if (!s.history[i].id) s.history[i].id = uid();
+        var h = s.history[i];
+        if (!h.id) h.id = uid();
+        if (h.type === TYPE.EXPENSE && !h.categoryId) {
+            h.categoryId = DEFAULT_CATEGORY_ID;
+        }
     }
+
     return s;
+}
+
+function isValidTf(id) {
+    for (var i = 0; i < TIMEFRAMES.length; i++) {
+        if (TIMEFRAMES[i].id === id) return true;
+    }
+    return false;
 }
 
 function isValidDebt(d) {
@@ -778,12 +1026,16 @@ function switchTab(tab) {
     var c = document.getElementById('mainContent');
     c.innerHTML = '';
 
-    if (tab === 'balance')       renderBalance(c);
-    else if (tab === 'debts')    renderDebts(c);
-    else if (tab === 'plans')    renderPlans(c);
-    else if (tab === 'settings') renderSettings(c);
+    if (tab === 'balance')        renderBalance(c);
+    else if (tab === 'debts')     renderDebts(c);
+    else if (tab === 'plans')     renderPlans(c);
+    else if (tab === 'analytics') renderAnalytics(c);
+    else if (tab === 'settings')  renderSettings(c);
 
     c.scrollTop = 0;
+
+    // Скрываем tooltip при смене вкладки
+    hideChartTooltip();
 }
 
 /* =========================================================================
@@ -844,10 +1096,20 @@ function renderBalance(c) {
             var isPos = h.amount > 0;
             var color = isPos ? 'var(--green)' : 'var(--red)';
             var sign  = isPos ? '+' : '';
+
+            // Бейдж категории — только для расходов
+            var badgeHtml = '';
+            if (h.type === TYPE.EXPENSE && h.categoryId) {
+                var cat = getCategory(h.categoryId);
+                if (cat) {
+                    badgeHtml = '<span class="cat-badge ' + cat.cssClass + '">' + cat.icon + ' ' + esc(cat.name) + '</span>';
+                }
+            }
+
             historyHtml +=
                 '<div class="list-item">' +
                     '<div class="item-left">' +
-                        '<div class="item-name">' + (esc(h.desc) || 'Без описания') + '</div>' +
+                        '<div class="item-name">' + (esc(h.desc) || 'Без описания') + badgeHtml + '</div>' +
                         '<div class="item-sub">' + formatDateTime(h.date) + '</div>' +
                     '</div>' +
                     '<div class="item-right" style="display:flex; align-items:center;">' +
@@ -885,6 +1147,11 @@ function setHistoryFilter(f) {
     renderBalance(document.getElementById('mainContent'));
 }
 
+/* =========================================================================
+   ОПЕРАЦИЯ С ОСТАТКОМ
+   sign = +1  — пополнение (без категории)
+   sign = -1  — списание (с выбором категории)
+   ========================================================================= */
 function doOp(sign) {
     var amtInput  = document.getElementById('opAmount');
     var descInput = document.getElementById('opDesc');
@@ -897,42 +1164,102 @@ function doOp(sign) {
     }
 
     var desc = descInput.value.trim();
+
+    if (sign > 0) {
+        // Пополнение — сразу применяем
+        applyOp(sign, amt, desc, null);
+    } else {
+        // Списание — сначала выбор категории
+        showCategoryPicker(amt, desc);
+    }
+}
+
+/* Применение операции (после выбора категории или сразу для пополнения) */
+function applyOp(sign, amt, desc, categoryId) {
     var delta = amt * sign;
 
+    // Проверка ухода в минус — только для списаний
     if (sign < 0 && state.balance + delta < 0) {
         showConfirm(
             'Баланс станет отрицательным',
             'После операции остаток: ' + fmt(state.balance + delta) + '. Продолжить?',
             function () {
-                state.balance += delta;
-                state.history.unshift({
-                    id: uid(),
-                    date: new Date().toISOString(),
-                    type: sign > 0 ? TYPE.INCOME : TYPE.EXPENSE,
-                    desc: desc,
-                    amount: delta
-                });
-                saveState();
-                renderBalance(document.getElementById('mainContent'));
+                commitOp(sign, amt, desc, categoryId, delta);
             },
             { danger: true, okLabel: 'Всё равно списать' }
         );
         return;
     }
 
+    commitOp(sign, amt, desc, categoryId, delta);
+}
+
+/* Сохранение операции в state */
+function commitOp(sign, amt, desc, categoryId, delta) {
     state.balance += delta;
-    state.history.unshift({
+
+    var record = {
         id: uid(),
         date: new Date().toISOString(),
         type: sign > 0 ? TYPE.INCOME : TYPE.EXPENSE,
         desc: desc,
         amount: delta
-    });
+    };
+    if (sign < 0 && categoryId) {
+        record.categoryId = categoryId;
+    }
+    state.history.unshift(record);
 
     saveState();
+    hideModal();
     renderBalance(document.getElementById('mainContent'));
 }
 
+/* =========================================================================
+   МОДАЛКА ВЫБОРА КАТЕГОРИИ
+   ========================================================================= */
+var _pendingExpense = null;
+
+function showCategoryPicker(amt, desc) {
+    _pendingExpense = { amt: amt, desc: desc };
+
+    var buttonsHtml = '';
+    for (var i = 0; i < CATEGORIES.length; i++) {
+        var cat = CATEGORIES[i];
+        buttonsHtml +=
+            '<button type="button" class="cat-btn" data-action="cat-pick" data-id="' + esc(cat.id) + '">' +
+                '<span class="cat-icon">' + cat.icon + '</span>' +
+                '<span>' + esc(cat.name) + '</span>' +
+            '</button>';
+    }
+
+    showModal(
+        '<h3>Куда потратил?</h3>' +
+        '<div class="cat-amount">−' + fmt(amt) + '</div>' +
+        (desc ? '<div class="cat-desc">' + esc(desc) + '</div>' : '') +
+        '<div class="cat-list">' + buttonsHtml + '</div>' +
+        '<button type="button" class="btn-full btn-outline" data-action="cat-cancel">Отмена</button>'
+    );
+}
+
+function pickCategory(catId) {
+    if (!_pendingExpense) return;
+    var amt = _pendingExpense.amt;
+    var desc = _pendingExpense.desc;
+    _pendingExpense = null;
+    hideModal();
+    applyOp(-1, amt, desc, catId);
+}
+
+function cancelCategoryPicker() {
+    _pendingExpense = null;
+    hideModal();
+    // Возвращаем фокус на поле суммы, но НЕ очищаем поля — пользователь может передумать
+    var amtInput = document.getElementById('opAmount');
+    if (amtInput) { try { amtInput.focus(); } catch (_) {} }
+}
+
+// === ЧАСТЬ 3 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 4. ===
 /* =========================================================================
    TAB: DEBTS
    ========================================================================= */
@@ -1270,7 +1597,613 @@ function delPlan(id) {
     );
 }
 
-// === ЧАСТЬ 3 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 4. ===
+// === ЧАСТЬ 4 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 5. ===
+/* =========================================================================
+   ANALYTICS — группировка данных по таймфреймам
+   ========================================================================= */
+
+/* Возвращает массив «точек» для графика.
+   Каждая точка: { start, end, label, balanceEnd, income, expense, ops } */
+function buildChartData(tfId) {
+    var tf = null;
+    for (var i = 0; i < TIMEFRAMES.length; i++) {
+        if (TIMEFRAMES[i].id === tfId) { tf = TIMEFRAMES[i]; break; }
+    }
+    if (!tf) tf = TIMEFRAMES[0];
+
+    var now = new Date();
+    var todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    // Диапазон
+    var startDate;
+    if (tf.unit === 'day') {
+        startDate = new Date(todayEnd);
+        startDate.setDate(startDate.getDate() - tf.days + 1);
+        startDate.setHours(0, 0, 0, 0);
+    } else if (tf.unit === 'month') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - (tf.days / 30 - 1), 1, 0, 0, 0);
+    } else if (tf.unit === 'q') {
+        // Кварталы: 8 последних кварталов
+        var quarters = tf.days / 90;
+        var currentQ = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), (currentQ - (quarters - 1)) * 3, 1, 0, 0, 0);
+    } else { // year
+        var years = tf.days / 365;
+        startDate = new Date(now.getFullYear() - (years - 1), 0, 1, 0, 0, 0);
+    }
+
+    // Строим «слоты» (периоды)
+    var slots = [];
+    if (tf.unit === 'day') {
+        var cur = new Date(startDate);
+        while (cur <= todayEnd) {
+            var dayEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59);
+            slots.push({
+                start: new Date(cur),
+                end: dayEnd,
+                label: formatDayLabel(cur),
+                income: 0, expense: 0, ops: 0
+            });
+            cur.setDate(cur.getDate() + 1);
+        }
+    } else if (tf.unit === 'month') {
+        var m = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        while (m <= now) {
+            var mEnd = new Date(m.getFullYear(), m.getMonth() + 1, 0, 23, 59, 59);
+            slots.push({
+                start: new Date(m),
+                end: mEnd,
+                label: formatMonthLabel(m),
+                income: 0, expense: 0, ops: 0
+            });
+            m = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+        }
+    } else if (tf.unit === 'q') {
+        var q = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        while (q <= now) {
+            var qStartMonth = q.getMonth();
+            var qEnd = new Date(q.getFullYear(), qStartMonth + 3, 0, 23, 59, 59);
+            slots.push({
+                start: new Date(q),
+                end: qEnd,
+                label: formatQuarterLabel(q),
+                income: 0, expense: 0, ops: 0
+            });
+            q = new Date(q.getFullYear(), qStartMonth + 3, 1);
+        }
+    } else { // year
+        var y = new Date(startDate.getFullYear(), 0, 1);
+        while (y <= now) {
+            var yEnd = new Date(y.getFullYear(), 11, 31, 23, 59, 59);
+            slots.push({
+                start: new Date(y),
+                end: yEnd,
+                label: String(y.getFullYear()),
+                income: 0, expense: 0, ops: 0
+            });
+            y = new Date(y.getFullYear() + 1, 0, 1);
+        }
+    }
+
+    // Раскладываем историю по слотам
+    // Также считаем баланс на конец каждого слота (нужно знать balance ДО стартового дня)
+    var balanceBefore = state.balance;
+    for (var k = 0; k < state.history.length; k++) {
+        balanceBefore -= state.history[k].amount;
+    }
+
+    var sorted = state.history.slice().sort(function (a, b) {
+        return new Date(a.date) - new Date(b.date);
+    });
+
+    var runningBalance = balanceBefore;
+    var hIdx = 0;
+
+    for (var s = 0; s < slots.length; s++) {
+        var slot = slots[s];
+        while (hIdx < sorted.length) {
+            var h = sorted[hIdx];
+            var hDate = new Date(h.date);
+            if (hDate < slot.start) {
+                // Операция ДО начала этого слота — просто учитываем в runningBalance
+                runningBalance += h.amount;
+                hIdx++;
+                continue;
+            }
+            if (hDate > slot.end) break;
+            // Внутри слота
+            runningBalance += h.amount;
+            if (h.amount > 0) slot.income += h.amount;
+            else if (h.amount < 0) slot.expense += Math.abs(h.amount);
+            slot.ops++;
+            hIdx++;
+        }
+        slot.balanceEnd = runningBalance;
+    }
+
+    return slots;
+}
+
+/* Подписи периодов */
+function formatDayLabel(d) {
+    return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
+}
+function formatMonthLabel(d) {
+    return MONTHS_SHORT[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2);
+}
+function formatQuarterLabel(d) {
+    var q = Math.floor(d.getMonth() / 3) + 1;
+    return 'Q' + q + ' ' + String(d.getFullYear()).slice(2);
+}
+
+var MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
+/* Полная подпись для tooltip */
+function formatPeriodFull(slot, tfId) {
+    if (tfId === 'D1') {
+        return slot.start.getDate() + ' ' + MONTHS_FULL[slot.start.getMonth()] + ' ' + slot.start.getFullYear();
+    }
+    if (tfId === 'M1') {
+        return MONTHS_FULL[slot.start.getMonth()] + ' ' + slot.start.getFullYear();
+    }
+    if (tfId === 'M3') {
+        var q = Math.floor(slot.start.getMonth() / 3) + 1;
+        return 'Квартал ' + q + ', ' + slot.start.getFullYear();
+    }
+    return 'Год ' + slot.start.getFullYear();
+}
+
+var MONTHS_FULL = ['Январь','Февраль','Март','Апрель','Май','Июнь',
+                   'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+/* =========================================================================
+   ANALYTICS — рендер графика на Canvas
+   ========================================================================= */
+function initCanvasHiDPI(canvas, cssWidth, cssHeight) {
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(cssWidth * dpr);
+    canvas.height = Math.floor(cssHeight * dpr);
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+}
+
+function drawChart(canvas, slots, tfId) {
+    if (!canvas || !slots || slots.length === 0) return;
+
+    var wrap = canvas.parentNode;
+    var cssW = wrap.clientWidth;
+    var cssH = 320;
+    var ctx = initCanvasHiDPI(canvas, cssW, cssH);
+
+    var PAD_L = 44;
+    var PAD_R = 12;
+    var PAD_T = 12;
+    var PAD_B = 22;
+    var GAP = 6;              // между верхним графиком и объёмами
+    var VOL_H = 60;           // высота области объёмов
+
+    var chartW = cssW - PAD_L - PAD_R;
+    var chartH = cssH - PAD_T - PAD_B - GAP - VOL_H;
+
+    var lineTop = PAD_T;
+    var lineBot = PAD_T + chartH;
+    var volTop  = lineBot + GAP;
+    var volBot  = volTop + VOL_H;
+
+    // Цвета
+    var C_GRID   = '#2a3548';
+    var C_AXIS   = '#3a4558';
+    var C_TEXT   = '#8b9bb4';
+    var C_LINE   = '#00d2ff';
+    var C_GREEN  = '#00d26a';
+    var C_RED    = '#ff4757';
+
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    // ---- Диапазон по Y для линии баланса ----
+    var minBal = Infinity, maxBal = -Infinity;
+    for (var i = 0; i < slots.length; i++) {
+        var b = slots[i].balanceEnd;
+        if (b < minBal) minBal = b;
+        if (b > maxBal) maxBal = b;
+    }
+    if (!isFinite(minBal)) { minBal = 0; maxBal = 1; }
+    if (minBal === maxBal) { minBal -= 1; maxBal += 1; }
+    // Немного запаса
+    var range = maxBal - minBal;
+    minBal -= range * 0.05;
+    maxBal += range * 0.05;
+    // Всегда показываем ноль, если он рядом
+    if (minBal > 0 && minBal < range * 0.5) minBal = 0;
+    if (maxBal < 0 && maxBal > -range * 0.5) maxBal = 0;
+
+    var yRange = maxBal - minBal;
+    if (yRange === 0) yRange = 1;
+
+    function yForBalance(b) {
+        return lineBot - ((b - minBal) / yRange) * chartH;
+    }
+
+    // ---- Диапазон по Y для объёмов ----
+    var maxVol = 0;
+    for (var v = 0; v < slots.length; v++) {
+        var inc = slots[v].income;
+        var exp = slots[v].expense;
+        if (inc > maxVol) maxVol = inc;
+        if (exp > maxVol) maxVol = exp;
+    }
+    if (maxVol === 0) maxVol = 1;
+
+    var volHalf = VOL_H / 2;  // ось X объёмов по центру
+
+    // ---- Сетка и подписи Y (линия) ----
+    var gridLines = 4;
+    ctx.strokeStyle = C_GRID;
+    ctx.fillStyle = C_TEXT;
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 1;
+
+    for (var g = 0; g <= gridLines; g++) {
+        var val = minBal + (yRange * g / gridLines);
+        var y = yForBalance(val);
+        ctx.beginPath();
+        ctx.moveTo(PAD_L, y);
+        ctx.lineTo(PAD_L + chartW, y);
+        ctx.stroke();
+        ctx.fillText(fmtShort(val), PAD_L - 6, y);
+    }
+
+    // ---- Ось X (подписи периодов) ----
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    var step = slots.length;
+    var maxLabels = Math.max(3, Math.floor(chartW / 55));
+    var labelEvery = Math.ceil(step / maxLabels);
+
+    for (var s2 = 0; s2 < slots.length; s2++) {
+        if (s2 % labelEvery !== 0 && s2 !== slots.length - 1) continue;
+        var x = PAD_L + (chartW * (s2 + 0.5) / slots.length);
+        ctx.fillText(slots[s2].label, x, volBot + 4);
+    }
+
+    // ---- Линия баланса ----
+    if (slots.length > 0) {
+        // Заливка под линией
+        var grad = ctx.createLinearGradient(0, lineTop, 0, lineBot);
+        grad.addColorStop(0, 'rgba(0,210,255,0.18)');
+        grad.addColorStop(1, 'rgba(0,210,255,0)');
+
+        ctx.beginPath();
+        for (var p = 0; p < slots.length; p++) {
+            var px = PAD_L + (chartW * (p + 0.5) / slots.length);
+            var py = yForBalance(slots[p].balanceEnd);
+            if (p === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        // Закрываем для заливки
+        var lastX = PAD_L + (chartW * (slots.length - 0.5) / slots.length);
+        ctx.lineTo(lastX, lineBot);
+        var firstX = PAD_L + (chartW * 0.5 / slots.length);
+        ctx.lineTo(firstX, lineBot);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Сама линия
+        ctx.beginPath();
+        for (var p2 = 0; p2 < slots.length; p2++) {
+            var px2 = PAD_L + (chartW * (p2 + 0.5) / slots.length);
+            var py2 = yForBalance(slots[p2].balanceEnd);
+            if (p2 === 0) ctx.moveTo(px2, py2);
+            else ctx.lineTo(px2, py2);
+        }
+        ctx.strokeStyle = C_LINE;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        // Точки на концах (если точек мало — рисуем все)
+        if (slots.length <= 40) {
+            ctx.fillStyle = C_LINE;
+            for (var p3 = 0; p3 < slots.length; p3++) {
+                var px3 = PAD_L + (chartW * (p3 + 0.5) / slots.length);
+                var py3 = yForBalance(slots[p3].balanceEnd);
+                ctx.beginPath();
+                ctx.arc(px3, py3, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // ---- Нулевая линия объёмов ----
+    ctx.strokeStyle = C_AXIS;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, volTop + volHalf);
+    ctx.lineTo(PAD_L + chartW, volTop + volHalf);
+    ctx.stroke();
+
+    // ---- Столбики объёмов ----
+    var slotW = chartW / slots.length;
+    var barW = Math.max(1, Math.min(slotW * 0.7, 20));
+
+    for (var b = 0; b < slots.length; b++) {
+        var sl = slots[b];
+        var cx = PAD_L + slotW * (b + 0.5);
+
+        // Доходы вверх (зелёный)
+        if (sl.income > 0) {
+            var hInc = (sl.income / maxVol) * volHalf;
+            ctx.fillStyle = C_GREEN;
+            ctx.fillRect(cx - barW / 2, volTop + volHalf - hInc, barW, hInc);
+        }
+        // Расходы вниз (красный)
+        if (sl.expense > 0) {
+            var hExp = (sl.expense / maxVol) * volHalf;
+            ctx.fillStyle = C_RED;
+            ctx.fillRect(cx - barW / 2, volTop + volHalf, barW, hExp);
+        }
+    }
+
+    // ---- Рамка осей (внешняя) ----
+    ctx.strokeStyle = C_AXIS;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, lineTop);
+    ctx.lineTo(PAD_L, volBot);
+    ctx.stroke();
+}
+
+// === ЧАСТЬ 5 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 6. ===
+/* =========================================================================
+   TAB: ANALYTICS — рендер вкладки
+   ========================================================================= */
+function renderAnalytics(c) {
+    var currentTf = state.tf || 'D1';
+
+    /* --- Переключатель таймфреймов --- */
+    var tfHtml = '<div class="tf-switcher">';
+    for (var i = 0; i < TIMEFRAMES.length; i++) {
+        var tf = TIMEFRAMES[i];
+        tfHtml += '<button type="button" class="tf-btn ' +
+            (currentTf === tf.id ? 'active' : '') +
+            '" data-action="tf" data-tf="' + tf.id + '">' + tf.label + '</button>';
+    }
+    tfHtml += '</div>';
+
+    /* --- Собираем данные для графика --- */
+    var slots = buildChartData(currentTf);
+
+    /* --- Сводка за период --- */
+    var totalIncome = 0, totalExpense = 0, totalOps = 0;
+    var balanceStart = null, balanceEnd = null;
+    for (var j = 0; j < slots.length; j++) {
+        totalIncome  += slots[j].income;
+        totalExpense += slots[j].expense;
+        totalOps     += slots[j].ops;
+        if (balanceStart === null) {
+            balanceStart = slots[j].balanceEnd - (slots[j].income - slots[j].expense);
+        }
+        balanceEnd = slots[j].balanceEnd;
+    }
+
+    var netChange = totalIncome - totalExpense;
+    var netClass = netChange >= 0 ? 'pos' : 'neg';
+    var netSign  = netChange >= 0 ? '+' : '';
+    var daysInPeriod = Math.max(1, slots.length * (TIMEFRAMES.find(function(t){return t.id === currentTf;}).unit === 'day' ? 1 :
+        (TIMEFRAMES.find(function(t){return t.id === currentTf;}).unit === 'month' ? 30 :
+        (TIMEFRAMES.find(function(t){return t.id === currentTf;}).unit === 'q' ? 90 : 365))));
+    var avgPerDay = totalExpense / daysInPeriod;
+
+    /* --- Разбивка по категориям (только расходы) --- */
+    var catSums = { food: 0, fun: 0, other: 0 };
+    var startTs = slots.length > 0 ? slots[0].start.getTime() : 0;
+    var endTs   = slots.length > 0 ? slots[slots.length - 1].end.getTime() : Date.now();
+    for (var k = 0; k < state.history.length; k++) {
+        var h = state.history[k];
+        var hTs = new Date(h.date).getTime();
+        if (hTs < startTs || hTs > endTs) continue;
+        if (h.type !== TYPE.EXPENSE) continue;
+        var cat = h.categoryId || DEFAULT_CATEGORY_ID;
+        if (catSums[cat] === undefined) catSums[cat] = 0;
+        catSums[cat] += Math.abs(h.amount);
+    }
+    var totalCatSum = catSums.food + catSums.fun + catSums.other;
+
+    var catRowsHtml = '';
+    for (var ci = 0; ci < CATEGORIES.length; ci++) {
+        var catDef = CATEGORIES[ci];
+        var sum = catSums[catDef.id] || 0;
+        var pct = totalCatSum > 0 ? Math.round((sum / totalCatSum) * 100) : 0;
+        catRowsHtml +=
+            '<div class="cat-table-row">' +
+                '<span class="ct-dot" style="background:' + catDef.color + '"></span>' +
+                '<span class="ct-name">' + catDef.icon + ' ' + esc(catDef.name) + '</span>' +
+                '<span class="ct-amount">' + fmt(sum) + '</span>' +
+                '<span class="ct-pct">' + pct + '%</span>' +
+            '</div>';
+    }
+
+    /* --- Сборка HTML --- */
+    var html =
+        '<div class="card">' +
+            tfHtml +
+            '<div class="chart-wrap">' +
+                '<canvas class="chart-canvas" id="chartCanvas"></canvas>' +
+            '</div>' +
+            '<div class="analytics-summary">' +
+                '<div class="as-row"><span>Доходы за период</span><b class="pos">+' + fmt(totalIncome) + '</b></div>' +
+                '<div class="as-row"><span>Расходы за период</span><b class="neg">−' + fmt(totalExpense) + '</b></div>' +
+                '<div class="as-row"><span>Итог</span><b class="' + netClass + '">' + netSign + fmt(netChange) + '</b></div>' +
+                '<div class="as-row"><span>Операций</span><b>' + totalOps + '</b></div>' +
+                '<div class="as-row"><span>Средний расход/день</span><b>' + fmt(avgPerDay) + '</b></div>' +
+            '</div>' +
+        '</div>' +
+        '<div class="card">' +
+            '<div class="card-title" style="margin-bottom:10px">Расходы по категориям</div>' +
+            (totalCatSum > 0
+                ? '<div class="cat-table">' + catRowsHtml + '</div>'
+                : '<div class="empty-state">За период расходов нет</div>') +
+        '</div>';
+
+    c.innerHTML = html;
+
+    // Рисуем график после того, как DOM обновлён и canvas получил размеры
+    requestAnimationFrame(function () {
+        var canvas = document.getElementById('chartCanvas');
+        if (canvas) {
+            drawChart(canvas, slots, currentTf);
+            chartSlotsCache = slots;
+            chartTfCache = currentTf;
+        }
+    });
+}
+
+/* Кэш для tooltip */
+var chartSlotsCache = [];
+var chartTfCache = 'D1';
+
+/* Переключение таймфрейма */
+function setTimeframe(tfId) {
+    if (!isValidTf(tfId)) return;
+    if (state.tf === tfId) return;
+    state.tf = tfId;
+    saveState();
+    hideChartTooltip();
+    renderAnalytics(document.getElementById('mainContent'));
+}
+
+/* =========================================================================
+   TOOLTIP на тап по столбику
+   ========================================================================= */
+function attachChartTapHandler() {
+    var canvas = document.getElementById('chartCanvas');
+    if (!canvas) return;
+
+    canvas.addEventListener('click', function (e) {
+        handleChartTap(e, canvas);
+    });
+}
+
+function handleChartTap(e, canvas) {
+    if (!chartSlotsCache || chartSlotsCache.length === 0) return;
+
+    var rect = canvas.getBoundingClientRect();
+    var tapX = e.clientX - rect.left;
+
+    // Повторяем ту же геометрию, что в drawChart
+    var cssW = rect.width;
+    var PAD_L = 44;
+    var PAD_R = 12;
+    var chartW = cssW - PAD_L - PAD_R;
+
+    if (tapX < PAD_L || tapX > PAD_L + chartW) {
+        hideChartTooltip();
+        return;
+    }
+
+    var slotW = chartW / chartSlotsCache.length;
+    var idx = Math.floor((tapX - PAD_L) / slotW);
+    if (idx < 0 || idx >= chartSlotsCache.length) {
+        hideChartTooltip();
+        return;
+    }
+
+    var slot = chartSlotsCache[idx];
+
+    // Если в этом слоте вообще нет операций — всё равно показываем, но
+    // в tooltip будет 0/0. Если хочешь — можно скрывать. Покажем.
+    showChartTooltip(slot, e.clientX, e.clientY);
+}
+
+function showChartTooltip(slot, tapX, tapY) {
+    var tt = document.getElementById('chartTooltip');
+    if (!tt) return;
+
+    var tfId = chartTfCache;
+    var period = formatPeriodFull(slot, tfId);
+
+    var net = slot.income - slot.expense;
+    var netSign = net >= 0 ? '+' : '';
+    var netClass = net >= 0 ? 'pos' : 'neg';
+
+    // Разбивка по категориям за этот период
+    var catSums = { food: 0, fun: 0, other: 0 };
+    for (var i = 0; i < state.history.length; i++) {
+        var h = state.history[i];
+        var hTs = new Date(h.date).getTime();
+        if (hTs < slot.start.getTime() || hTs > slot.end.getTime()) continue;
+        if (h.type !== TYPE.EXPENSE) continue;
+        var cid = h.categoryId || DEFAULT_CATEGORY_ID;
+        if (catSums[cid] === undefined) catSums[cid] = 0;
+        catSums[cid] += Math.abs(h.amount);
+    }
+    var totalCat = catSums.food + catSums.fun + catSums.other;
+
+    var catHtml = '';
+    if (totalCat > 0) {
+        catHtml = '<div class="tt-sep"></div>';
+        for (var ci = 0; ci < CATEGORIES.length; ci++) {
+            var catDef = CATEGORIES[ci];
+            var sum = catSums[catDef.id] || 0;
+            if (sum === 0) continue;
+            catHtml +=
+                '<div class="tt-cat-row">' +
+                    '<span style="color:' + catDef.color + '">' + catDef.icon + ' ' + esc(catDef.name) + '</span>' +
+                    '<span style="color:' + catDef.color + ';font-weight:bold">' + fmt(sum) + '</span>' +
+                '</div>';
+        }
+    }
+
+    var balanceStr = fmt(slot.balanceEnd !== undefined ? slot.balanceEnd : 0);
+
+    tt.innerHTML =
+        '<div class="tt-period">' + esc(period) + '</div>' +
+        '<div class="tt-row"><span class="tt-label">Доход</span><span class="tt-value pos">+' + fmt(slot.income) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Расход</span><span class="tt-value neg">−' + fmt(slot.expense) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Итог</span><span class="tt-value ' + netClass + '">' + netSign + fmt(net) + '</span></div>' +
+        '<div class="tt-sep"></div>' +
+        '<div class="tt-row"><span class="tt-label">Баланс</span><span class="tt-value">' + balanceStr + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Операций</span><span class="tt-value">' + slot.ops + '</span></div>' +
+        catHtml;
+
+    tt.style.display = 'block';
+
+    // Позиционирование рядом с точкой тапа, с учётом границ экрана
+    var ttRect = tt.getBoundingClientRect();
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+
+    var offset = 12;
+    var posX = tapX + offset;
+    var posY = tapY + offset;
+
+    if (posX + ttRect.width > vw - 8) {
+        posX = tapX - ttRect.width - offset;
+    }
+    if (posX < 8) posX = 8;
+    if (posY + ttRect.height > vh - 8) {
+        posY = tapY - ttRect.height - offset;
+    }
+    if (posY < 8) posY = 8;
+
+    tt.style.left = posX + 'px';
+    tt.style.top  = posY + 'px';
+}
+
+function hideChartTooltip() {
+    var tt = document.getElementById('chartTooltip');
+    if (tt) {
+        tt.style.display = 'none';
+        tt.innerHTML = '';
+    }
+}
+
+// === ЧАСТЬ 6 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 7. ===
 /* =========================================================================
    TAB: SETTINGS
    ========================================================================= */
@@ -1292,7 +2225,7 @@ function renderSettings(c) {
         '<div class="card">' +
             '<div class="card-title">О приложении</div>' +
             '<p style="font-size:12px; color:var(--dim); line-height:1.5; margin:8px 0 0;">' +
-                'Finance Shield<br>' +
+                'Finance Shield v8<br>' +
                 'Локальное хранилище. Без серверов. Без рекламы.<br>' +
                 'Данные никогда не покидают твоё устройство.' +
             '</p>' +
@@ -1402,7 +2335,7 @@ function showModal(html) {
     modalVisible = true;
 
     requestAnimationFrame(function () {
-        // Фокусим только текстовые инпуты, не чекбоксы
+        // Фокусим только текстовые инпуты
         var inp = content.querySelector(
             'input:not([type="checkbox"]):not([type="radio"]):not([type="file"])'
         );
@@ -1418,6 +2351,7 @@ function hideModal() {
     modalVisible = false;
     _confirmCallback = null;
     _delHistState = { id: null, refund: false, restore: false };
+    // Не сбрасываем _pendingExpense — им управляет отдельная логика
 }
 
 /* =========================================================================
@@ -1518,10 +2452,8 @@ function showDeleteHistoryItem(id, opts) {
     var refundVal  = (typeof opts.refund  === 'boolean') ? opts.refund  : false;
     var restoreVal = (typeof opts.restore === 'boolean') ? opts.restore : false;
 
-    // Если «восстановить долг» включено, но «вернуть баланс» — нет, сбрасываем
     if (!refundVal && restoreVal) restoreVal = false;
 
-    // Запоминаем состояние в модуле — на случай неожиданных вызовов
     _delHistState.id = id;
     _delHistState.refund = refundVal;
     _delHistState.restore = restoreVal;
@@ -1530,11 +2462,9 @@ function showDeleteHistoryItem(id, opts) {
     var sign  = isPos ? '+' : '';
     var amountClass = isPos ? 'pos' : 'neg';
 
-    // Проверяем, является ли запись возвратом долга
     var debtInfo = parseDebtReturn(item.desc);
     var canRestoreDebt = !!debtInfo;
 
-    // Подсказка под «вернуть баланс»
     var balanceHint;
     if (refundVal) {
         var newBalance = state.balance - item.amount;
@@ -1543,7 +2473,6 @@ function showDeleteHistoryItem(id, opts) {
         balanceHint = 'Баланс не изменится';
     }
 
-    // Подсказка под «восстановить долг»
     var restoreHint = '';
     if (canRestoreDebt) {
         if (!refundVal) {
@@ -1607,21 +2536,15 @@ function showDeleteHistoryItem(id, opts) {
 function handleRefundToggle(checked) {
     var id = _delHistState.id;
     if (!id) return;
-
-    // При снятии «вернуть баланс» — сбрасываем «восстановить долг»
     var restore = _delHistState.restore;
     if (!checked) restore = false;
-
     showDeleteHistoryItem(id, { refund: checked, restore: restore });
 }
 
 function handleRestoreToggle(checked) {
     var id = _delHistState.id;
     if (!id) return;
-
-    // Если «вернуть баланс» выключен — игнорируем
     if (!_delHistState.refund) return;
-
     showDeleteHistoryItem(id, { refund: true, restore: checked });
 }
 
@@ -1632,12 +2555,10 @@ function deleteHistoryItem(id, refund, restore) {
     }
     if (!item) return;
 
-    // 1. Корректируем баланс (на противоположное значение)
     if (refund) {
         state.balance -= item.amount;
     }
 
-    // 2. Восстанавливаем долг (если применимо)
     if (restore && refund) {
         var debtInfo = parseDebtReturn(item.desc);
         if (debtInfo) {
@@ -1645,10 +2566,8 @@ function deleteHistoryItem(id, refund, restore) {
             var matches = state.debts.filter(function (d) { return d.to === debtInfo.to; });
 
             if (matches.length === 1) {
-                // Ровно один — прибавляем к нему
                 matches[0].amount += restoreAmount;
             } else {
-                // Ноль или несколько — создаём новый долг
                 state.debts.push({
                     id: uid(),
                     to: debtInfo.to,
@@ -1659,27 +2578,34 @@ function deleteHistoryItem(id, refund, restore) {
         }
     }
 
-    // 3. Удаляем запись из истории
     state.history = state.history.filter(function (h) { return h.id !== id; });
 
     saveState();
     hideModal();
 
-    // 4. Перерисовываем текущую вкладку
     var c = document.getElementById('mainContent');
-    if (currentTab === 'balance')      renderBalance(c);
-    else if (currentTab === 'debts')   renderDebts(c);
-    else if (currentTab === 'plans')   renderPlans(c);
+    if (currentTab === 'balance')       renderBalance(c);
+    else if (currentTab === 'debts')    renderDebts(c);
+    else if (currentTab === 'plans')    renderPlans(c);
+    else if (currentTab === 'analytics') renderAnalytics(c);
     else if (currentTab === 'settings') renderSettings(c);
 }
 
-// === ЧАСТЬ 4 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 5. ===
+// === ЧАСТЬ 7 ЗАКОНЧЕНА. Дальше идёт ЧАСТЬ 8. ===
 /* =========================================================================
    ДЕЛЕГИРОВАНИЕ СОБЫТИЙ
    ========================================================================= */
 var ACTIONS = {
+    /* Остаток */
     'op':          function (el) { doOp(Number(el.getAttribute('data-sign'))); },
     'filter':      function (el) { setHistoryFilter(el.getAttribute('data-filter')); },
+
+    /* Категории */
+    'cat-pick':    function (el) { pickCategory(el.getAttribute('data-id')); },
+    'cat-cancel':  function ()   { cancelCategoryPicker(); },
+
+    /* Аналитика */
+    'tf':          function (el) { setTimeframe(el.getAttribute('data-tf')); },
 
     /* История — удаление конкретной записи */
     'history-del': function (el) {
@@ -1729,6 +2655,7 @@ var ACTIONS = {
     }
 };
 
+/* Универсальный обработчик клика по элементу с data-action */
 function handleClick(e) {
     var t = e.target;
     if (!t || typeof t.closest !== 'function') return;
@@ -1739,8 +2666,7 @@ function handleClick(e) {
     if (fn) fn(el);
 }
 
-/* Обработчик change для чекбоксов в модалке удаления истории.
-   Отдельно от click — потому что change и click в чекбоксах конфликтуют. */
+/* Обработчик change для чекбоксов в модалке удаления истории */
 function handleModalChange(e) {
     var t = e.target;
     if (!t) return;
@@ -1755,6 +2681,29 @@ function handleModalChange(e) {
     }
 }
 
+/* Обработчик клика по mainContent — отдельно для canvas и отдельно для data-action */
+function handleMainContentClick(e) {
+    var t = e.target;
+    if (!t) return;
+
+    /* Клик по canvas графика → tooltip */
+    if (t.id === 'chartCanvas') {
+        handleChartTap(e, t);
+        return;
+    }
+
+    /* Клик по кнопке с data-action */
+    if (typeof t.closest !== 'function') return;
+    var el = t.closest('[data-action]');
+    if (!el) return;
+    var action = el.getAttribute('data-action');
+    var fn = ACTIONS[action];
+    if (fn) fn(el);
+}
+
+/* =========================================================================
+   BIND EVENTS
+   ========================================================================= */
 function bindEvents() {
     /* Табы */
     document.getElementById('navTabs').addEventListener('click', function (e) {
@@ -1767,26 +2716,56 @@ function bindEvents() {
     /* Полоса фильтров */
     document.getElementById('filtersBar').addEventListener('click', handleClick);
 
-    /* Контент вкладок */
-    document.getElementById('mainContent').addEventListener('click', handleClick);
+    /* Основной контент: и кнопки, и canvas */
+    document.getElementById('mainContent').addEventListener('click', handleMainContentClick);
 
-    /* Модалка: клик (кнопки) */
+    /* Модалка: клик по кнопкам и по фону */
     document.getElementById('modalOverlay').addEventListener('click', function (e) {
-        if (e.target && e.target.id === 'modalOverlay') { hideModal(); return; }
+        if (e.target && e.target.id === 'modalOverlay') {
+            _pendingExpense = null;
+            hideModal();
+            return;
+        }
         handleClick(e);
     });
 
-    /* Модалка: change (чекбоксы) */
+    /* Модалка: change для чекбоксов */
     document.getElementById('modalOverlay').addEventListener('change', handleModalChange);
 
-    /* Импорт файла — слушаем на body, потому что input перерисовывается */
+    /* Импорт файла */
     document.body.addEventListener('change', function (e) {
         if (e.target && e.target.id === 'importFile') importData();
     });
 
-    /* Escape — закрыть модалку */
+    /* Escape — закрыть модалку и tooltip */
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && modalVisible) hideModal();
+        if (e.key === 'Escape') {
+            if (modalVisible) {
+                _pendingExpense = null;
+                hideModal();
+            } else {
+                hideChartTooltip();
+            }
+        }
+    });
+
+    /* Ресайз окна — перерисовать график, если вкладка analytics */
+    window.addEventListener('resize', function () {
+        if (currentTab === 'analytics') {
+            var canvas = document.getElementById('chartCanvas');
+            if (canvas && chartSlotsCache && chartSlotsCache.length > 0) {
+                drawChart(canvas, chartSlotsCache, chartTfCache);
+            }
+        }
+    });
+
+    /* Клик где угодно кроме canvas — закрыть tooltip */
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t) return;
+        if (t.id === 'chartCanvas') return;
+        if (t.closest && t.closest('.chart-tooltip')) return;
+        hideChartTooltip();
     });
 }
 
