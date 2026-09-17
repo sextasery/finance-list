@@ -438,29 +438,27 @@
     /* MODAL — фикс скролла: скроллится overlay, а не modal.
        Модалка выравнивается по верху, чтобы клавиатура не перекрывала кнопки. */
     .modal-overlay {
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.85);
-        display: none;
-        justify-content: center;
-        align-items: flex-start;
-        z-index: 100;
-        padding: 20px;
-        padding-bottom: calc(20px + var(--safe-bot));
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    .modal-overlay.visible { display: flex; }
-    .modal {
-        background: var(--card);
-        width: 100%;
-        max-width: 400px;
-        padding: 20px;
-        border-radius: 16px;
-        border: 1px solid var(--border);
-        margin: auto 0;
-        flex-shrink: 0;
-    }
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    z-index: 100;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px;
+    padding-bottom: 120px;
+}
+.modal-overlay.visible { display: block; }
+.modal {
+    background: var(--card);
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    margin: 0 auto;
+}
     .modal h3 { margin: 0 0 15px 0; color: var(--text); font-size: 18px; }
 
     .modal .confirm-text {
