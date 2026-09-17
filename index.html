@@ -306,7 +306,14 @@
         flex-shrink: 0;
     }
     .cat-badge.food         { background: rgba(255,159,67,0.18); color: #ff9f43; }
-    .cat-badge.fun          { background: rgba(165,94,234,0.18); color: #a55eea; }
+    .cat-badge.things       { background: rgba(255,107,157,0.18); color: #ff6b9d; }
+    .cat-badge.housing      { background: rgba(38,222,129,0.18);  color: #26de81; }
+    .cat-badge.transport    { background: rgba(69,170,242,0.18);  color: #45aaf2; }
+    .cat-badge.alcohol      { background: rgba(247,183,49,0.18);  color: #f7b731; }
+    .cat-badge.weed         { background: rgba(32,191,107,0.18);  color: #20bf6b; }
+    .cat-badge.gaba         { background: rgba(184,165,94,0.18);  color: #b8a55e; }
+    .cat-badge.synth        { background: rgba(91,141,255,0.20);  color: #5b8dff; }
+    .cat-badge.tariffs      { background: rgba(165,94,234,0.18);  color: #a55eea; }
     .cat-badge.other        { background: rgba(119,140,163,0.18); color: #778ca3; }
     .cat-badge.salary       { background: rgba(0,210,106,0.18); color: #00d26a; }
     .cat-badge.grandma      { background: rgba(74,222,128,0.18); color: #4ade80; }
@@ -820,9 +827,16 @@ var DEBT_PARTIAL_PREFIX = 'Частичный возврат: ';
 var DEBT_PARTIAL_MARKER = ' (остаток ';
 
 var CATEGORIES = [
-    { id: 'food',  name: 'Еда',            icon: '🍕', cssClass: 'food',  color: '#ff9f43' },
-    { id: 'fun',   name: 'Развлечения',    icon: '🎮', cssClass: 'fun',   color: '#a55eea' },
-    { id: 'other', name: 'Прочее',         icon: '💸', cssClass: 'other', color: '#778ca3' }
+    { id: 'food',      name: 'Еда',       icon: '🍕', cssClass: 'food',      color: '#ff9f43' },
+    { id: 'things',    name: 'Вещи',      icon: '👕', cssClass: 'things',    color: '#ff6b9d' },
+    { id: 'housing',   name: 'Жильё',     icon: '🏠', cssClass: 'housing',   color: '#26de81' },
+    { id: 'transport', name: 'Проезд',    icon: '🚌', cssClass: 'transport', color: '#45aaf2' },
+    { id: 'alcohol',   name: 'Алкоголь',  icon: '🍷', cssClass: 'alcohol',   color: '#f7b731' },
+    { id: 'weed',      name: 'Трава',     icon: '🌿', cssClass: 'weed',      color: '#20bf6b' },
+    { id: 'gaba',      name: 'Габа',      icon: '💊', cssClass: 'gaba',      color: '#b8a55e' },
+    { id: 'synth',     name: 'Синтетика', icon: '❄️', cssClass: 'synth',     color: '#5b8dff' },
+    { id: 'tariffs',   name: 'Тарифы',    icon: '📱', cssClass: 'tariffs',   color: '#a55eea' },
+    { id: 'other',     name: 'Прочее',    icon: '💸', cssClass: 'other',     color: '#778ca3' }
 ];
 
 var CATEGORIES_INCOME = [
@@ -1053,12 +1067,14 @@ function migrate(raw) {
     s.tf      = isValidTf(raw.tf) ? raw.tf : 'D1';
 
     for (var i = 0; i < s.history.length; i++) {
-        var h = s.history[i];
-        if (!h.id) h.id = uid();
-        if (h.type === TYPE.EXPENSE && !h.categoryId) h.categoryId = DEFAULT_CATEGORY_ID;
-        if (h.type === TYPE.INCOME  && !h.categoryId) h.categoryId = DEFAULT_INCOME_CATEGORY_ID;
-    }
-    return s;
+    var h = s.history[i];
+    if (!h.id) h.id = uid();
+    // Переезд со старой категории "fun" (Развлечения) в "other" (Прочее)
+    if (h.categoryId === 'fun') h.categoryId = 'other';
+    if (h.type === TYPE.EXPENSE && !h.categoryId) h.categoryId = DEFAULT_CATEGORY_ID;
+    if (h.type === TYPE.INCOME  && !h.categoryId) h.categoryId = DEFAULT_INCOME_CATEGORY_ID;
+}
+return s;
 }
 
 function isValidTf(id) {
