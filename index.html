@@ -20,9 +20,6 @@
         --min-touch: 44px;
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bot: env(safe-area-inset-bottom, 0px);
-        --cat-food: #ff9f43;
-        --cat-fun: #a55eea;
-        --cat-other: #778ca3;
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -143,9 +140,9 @@
     }
 
     .content {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    padding: 15px;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: 15px;
         display: flex;
         flex-direction: column;
         gap: 15px;
@@ -180,9 +177,6 @@
         padding: 0;
         font-family: inherit;
     }
-
-
-    /* LISTS — фикс выравнивания: суммы не съезжают, комментарий обрезается */
     .list-item {
         display: flex;
         justify-content: space-between;
@@ -201,11 +195,7 @@
     }
     .list-item.tappable:active { background: rgba(0,210,255,0.06); }
 
-    .item-left {
-        flex: 1 1 auto;
-        min-width: 0;
-        overflow: hidden;
-    }
+    .item-left { flex: 1 1 auto; min-width: 0; overflow: hidden; }
     .item-name {
         font-size: 15px;
         font-weight: 500;
@@ -241,18 +231,8 @@
         gap: 4px;
         min-width: 80px;
     }
-    .item-amount {
-        font-weight: bold;
-        font-size: 15px;
-        white-space: nowrap;
-        line-height: 1.2;
-    }
-    .item-actions {
-        display: flex;
-        gap: 6px;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-    }
+    .item-amount { font-weight: bold; font-size: 15px; white-space: nowrap; line-height: 1.2; }
+    .item-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 
     .mini-btn {
         background: transparent;
@@ -318,6 +298,51 @@
     .cat-badge.salary       { background: rgba(0,210,106,0.18); color: #00d26a; }
     .cat-badge.grandma      { background: rgba(74,222,128,0.18); color: #4ade80; }
     .cat-badge.other-income { background: rgba(134,239,172,0.18); color: #86efac; }
+
+    /* HISTORY TOOLS: поиск + фильтр категорий */
+    .history-tools {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        align-items: center;
+    }
+    .history-search {
+        flex: 1 1 auto;
+        background: #0a0c10;
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        outline: none;
+        margin: 0;
+        min-height: var(--min-touch);
+    }
+    .history-search:focus { border-color: var(--blue); }
+    .history-cat-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--dim);
+        padding: 0 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+        min-height: var(--min-touch);
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .history-cat-btn.active {
+        border-color: var(--blue);
+        color: var(--blue);
+    }
+    .history-load-more {
+        text-align: center;
+        color: var(--dim);
+        font-size: 12px;
+        padding: 12px 0 4px;
+    }
 
     input {
         width: 100%;
@@ -440,32 +465,28 @@
         -webkit-user-select: text;
         user-select: text;
     }
-
-
-    /* MODAL — фикс скролла: скроллится overlay, а не modal.
-       Модалка выравнивается по верху, чтобы клавиатура не перекрывала кнопки. */
     .modal-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.85);
-    display: none;
-    z-index: 100;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    padding: 20px;
-    padding-bottom: 120px;
-}
-.modal-overlay.visible { display: block; }
-.modal {
-    background: var(--card);
-    width: 100%;
-    max-width: 400px;
-    padding: 20px;
-    border-radius: 16px;
-    border: 1px solid var(--border);
-    margin: 0 auto;
-}
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.85);
+        display: none;
+        z-index: 100;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding: 20px;
+        padding-bottom: 120px;
+    }
+    .modal-overlay.visible { display: block; }
+    .modal {
+        background: var(--card);
+        width: 100%;
+        max-width: 400px;
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        margin: 0 auto;
+    }
     .modal h3 { margin: 0 0 15px 0; color: var(--text); font-size: 18px; }
 
     .modal .confirm-text {
@@ -533,10 +554,7 @@
         margin-bottom: 4px;
         word-break: break-word;
     }
-    .modal .history-summary .h-meta {
-        font-size: 12px;
-        color: var(--dim);
-    }
+    .modal .history-summary .h-meta { font-size: 12px; color: var(--dim); }
     .modal .history-summary .h-amount {
         font-size: 15px;
         font-weight: bold;
@@ -623,6 +641,48 @@
         background: rgba(0,210,255,0.08);
     }
 
+    /* CATEGORY FILTER MODAL */
+    .modal .cat-filter-subtitle {
+        font-size: 11px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin: 12px 0 6px;
+    }
+    .modal .cat-filter-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .modal .cat-filter-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        min-height: var(--min-touch);
+    }
+    .modal .cat-filter-row input[type="checkbox"] {
+        width: 20px; height: 20px;
+        margin: 0;
+        flex-shrink: 0;
+        accent-color: var(--blue);
+        cursor: pointer;
+    }
+    .modal .cat-filter-row .cf-dot {
+        width: 12px; height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .modal .cat-filter-row .cf-label {
+        flex: 1 1 auto;
+        font-size: 14px;
+        color: var(--text);
+    }
+
     /* ANALYTICS */
     .tf-switcher { display: flex; gap: 4px; margin-bottom: 12px; }
     .tf-btn {
@@ -639,11 +699,7 @@
         min-height: 40px;
         letter-spacing: 0.3px;
     }
-    .tf-btn.active {
-        background: var(--blue);
-        color: #000;
-        border-color: var(--blue);
-    }
+    .tf-btn.active { background: var(--blue); color: #000; border-color: var(--blue); }
 
     .chart-wrap { position: relative; width: 100%; margin-bottom: 12px; }
     .chart-canvas {
@@ -686,10 +742,7 @@
     .chart-tooltip .tt-row .tt-value { font-weight: bold; }
     .chart-tooltip .tt-row .tt-value.pos { color: var(--green); }
     .chart-tooltip .tt-row .tt-value.neg { color: var(--red); }
-    .chart-tooltip .tt-sep {
-        border-top: 1px solid var(--border);
-        margin: 6px 0;
-    }
+    .chart-tooltip .tt-sep { border-top: 1px solid var(--border); margin: 6px 0; }
     .chart-tooltip .tt-cat-row {
         display: flex;
         justify-content: space-between;
@@ -714,23 +767,9 @@
     .analytics-summary .as-row b.pos { color: var(--green); }
     .analytics-summary .as-row b.neg { color: var(--red); }
 
-    .cat-table {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: 12px;
-    }
-    .cat-table-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 13px;
-    }
-    .cat-table-row .ct-dot {
-        width: 10px; height: 10px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
+    .cat-table { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .cat-table-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .cat-table-row .ct-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .cat-table-row .ct-name { flex: 1 1 auto; color: var(--text); }
     .cat-table-row .ct-amount { color: var(--text); font-weight: bold; }
     .cat-table-row .ct-pct {
@@ -781,7 +820,6 @@
 <script>
 'use strict';
 // === ЧАСТЬ 3 ЗАКОНЧЕНА ===
-
 /* =========================================================================
    ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ОШИБОК
    ========================================================================= */
@@ -1006,7 +1044,6 @@ function parseDebtReturn(desc) {
 }
 
 // === ЧАСТЬ 4 ЗАКОНЧЕНА ===
-
 /* =========================================================================
    СОСТОЯНИЕ
    ========================================================================= */
@@ -1024,6 +1061,9 @@ function emptyState() {
 var state = emptyState();
 var currentTab = 'balance';
 var historyFilter = 'all';
+var historySearch = '';
+var historyCatFilter = [];
+var historyViewCount = 50;
 
 /* =========================================================================
    PERSISTENCE
@@ -1067,14 +1107,14 @@ function migrate(raw) {
     s.tf      = isValidTf(raw.tf) ? raw.tf : 'D1';
 
     for (var i = 0; i < s.history.length; i++) {
-    var h = s.history[i];
-    if (!h.id) h.id = uid();
-    // Переезд со старой категории "fun" (Развлечения) в "other" (Прочее)
-    if (h.categoryId === 'fun') h.categoryId = 'other';
-    if (h.type === TYPE.EXPENSE && !h.categoryId) h.categoryId = DEFAULT_CATEGORY_ID;
-    if (h.type === TYPE.INCOME  && !h.categoryId) h.categoryId = DEFAULT_INCOME_CATEGORY_ID;
-}
-return s;
+        var h = s.history[i];
+        if (!h.id) h.id = uid();
+        // Переезд со старой категории "fun" (Развлечения) в "other" (Прочее)
+        if (h.categoryId === 'fun') h.categoryId = 'other';
+        if (h.type === TYPE.EXPENSE && !h.categoryId) h.categoryId = DEFAULT_CATEGORY_ID;
+        if (h.type === TYPE.INCOME  && !h.categoryId) h.categoryId = DEFAULT_INCOME_CATEGORY_ID;
+    }
+    return s;
 }
 
 function isValidTf(id) {
@@ -1158,7 +1198,7 @@ function switchTab(tab) {
 }
 
 /* =========================================================================
-   FILTERS BAR
+   FILTERS BAR (Все / Доходы / Расходы / Переводы)
    ========================================================================= */
 function renderFiltersBar() {
     var bar = document.getElementById('filtersBar');
@@ -1180,6 +1220,79 @@ function hideFiltersBar() {
     if (bar) { bar.classList.remove('visible'); bar.innerHTML = ''; }
 }
 
+function setHistoryFilter(f) {
+    historyFilter = f;
+    historyViewCount = 50;
+    renderFiltersBar();
+    renderBalance(document.getElementById('mainContent'));
+}
+
+/* =========================================================================
+   ФИЛЬТРАЦИЯ ИСТОРИИ
+   ========================================================================= */
+function getFilteredHistory() {
+    var filtered = state.history;
+
+    if (historyFilter === TYPE.INCOME) {
+        filtered = filtered.filter(function (h) { return h.amount > 0; });
+    } else if (historyFilter === TYPE.EXPENSE) {
+        filtered = filtered.filter(function (h) { return h.amount < 0; });
+    } else if (historyFilter === TYPE.TRANSFER) {
+        filtered = filtered.filter(function (h) { return h.type === TYPE.TRANSFER; });
+    }
+
+    if (historyCatFilter.length > 0) {
+        filtered = filtered.filter(function (h) {
+            return historyCatFilter.indexOf(h.categoryId) !== -1;
+        });
+    }
+
+    var query = historySearch.trim().toLowerCase();
+    if (query) {
+        filtered = filtered.filter(function (h) {
+            if ((h.desc || '').toLowerCase().indexOf(query) !== -1) return true;
+            var amtStr = String(Math.abs(Math.round(h.amount)));
+            if (amtStr.indexOf(query) !== -1) return true;
+            return false;
+        });
+    }
+
+    return filtered;
+}
+
+/* Отрисовка одной записи истории */
+function renderHistoryItem(h) {
+    var isPos = h.amount > 0;
+    var color = isPos ? 'var(--green)' : 'var(--red)';
+    var sign  = isPos ? '+' : '';
+
+    var badgeHtml = '';
+    if (h.categoryId) {
+        var cat = getCategoryAny(h.categoryId);
+        if (cat) {
+            badgeHtml = '<span class="cat-badge ' + cat.cssClass + '">' +
+                cat.icon + ' ' + esc(cat.name) + '</span>';
+        }
+    }
+
+    return '<div class="list-item tappable" data-action="history-edit" data-id="' + esc(h.id) + '">' +
+        '<div class="item-left">' +
+            '<div class="item-name">' +
+                '<span class="item-desc">' + (esc(h.desc) || 'Без описания') + '</span>' +
+                badgeHtml +
+            '</div>' +
+            '<div class="item-sub">' + formatDateTime(h.date) + '</div>' +
+        '</div>' +
+        '<div class="item-right">' +
+            '<div class="item-amount" style="color:' + color + '">' + sign + fmt(h.amount) + '</div>' +
+            '<button type="button" class="history-del-btn" ' +
+                'data-action="history-del" data-id="' + esc(h.id) + '" ' +
+                'aria-label="Удалить запись">✕</button>' +
+        '</div>' +
+    '</div>';
+}
+
+// === ЧАСТЬ 5 ЗАКОНЧЕНА ===
 /* =========================================================================
    TAB: BALANCE
    ========================================================================= */
@@ -1195,56 +1308,38 @@ function renderBalance(c) {
             '</div>' +
         '</div>';
 
-    var filtered;
-    if (historyFilter === 'all') {
-        filtered = state.history;
-    } else if (historyFilter === TYPE.INCOME) {
-        filtered = state.history.filter(function (h) { return h.amount > 0; });
-    } else if (historyFilter === TYPE.EXPENSE) {
-        filtered = state.history.filter(function (h) { return h.amount < 0; });
-    } else if (historyFilter === TYPE.TRANSFER) {
-        filtered = state.history.filter(function (h) { return h.type === TYPE.TRANSFER; });
+    var allFiltered = getFilteredHistory();
+    var totalFiltered = allFiltered.length;
+    var visibleCount = Math.min(historyViewCount, totalFiltered);
+
+    var filterActive = historyCatFilter.length > 0;
+    var toolsHtml =
+        '<div class="history-tools">' +
+            '<input type="text" class="history-search" id="historySearch" ' +
+                'placeholder="Поиск по истории" autocomplete="off" value="' + esc(historySearch) + '">' +
+            '<button type="button" class="history-cat-btn ' + (filterActive ? 'active' : '') + '" ' +
+                'data-action="open-cat-filter">' +
+                '🏷 ' + (filterActive ? 'Категории: ' + historyCatFilter.length : 'Категории') +
+            '</button>' +
+        '</div>';
+
+    var historyHtml = '<div class="card"><div class="card-title">История операций</div>' + toolsHtml;
+
+    if (totalFiltered === 0) {
+        var emptyMsg = (historySearch.trim() || filterActive)
+            ? 'Ничего не найдено'
+            : 'Нет записей<br>Начни с пополнения баланса';
+        historyHtml += '<div class="empty-state">' + emptyMsg + '</div>';
     } else {
-        filtered = state.history;
-    }
+        historyHtml += '<div id="historyList">';
+        for (var k = 0; k < visibleCount; k++) {
+            historyHtml += renderHistoryItem(allFiltered[k]);
+        }
+        historyHtml += '</div>';
 
-    var historyHtml = '<div class="card"><div class="card-title">История операций</div>';
-
-    if (filtered.length === 0) {
-        historyHtml += '<div class="empty-state">Нет записей<br>Начни с пополнения баланса</div>';
-    } else {
-        var limit = Math.min(filtered.length, HISTORY_VIEW_LIMIT);
-        for (var k = 0; k < limit; k++) {
-            var h = filtered[k];
-            var isPos = h.amount > 0;
-            var color = isPos ? 'var(--green)' : 'var(--red)';
-            var sign  = isPos ? '+' : '';
-
-            var badgeHtml = '';
-            if (h.categoryId) {
-                var cat = getCategoryAny(h.categoryId);
-                if (cat) {
-                    badgeHtml = '<span class="cat-badge ' + cat.cssClass + '">' +
-                        cat.icon + ' ' + esc(cat.name) + '</span>';
-                }
-            }
-
-            historyHtml +=
-                '<div class="list-item tappable" data-action="history-edit" data-id="' + esc(h.id) + '">' +
-                    '<div class="item-left">' +
-                        '<div class="item-name">' +
-                            '<span class="item-desc">' + (esc(h.desc) || 'Без описания') + '</span>' +
-                            badgeHtml +
-                        '</div>' +
-                        '<div class="item-sub">' + formatDateTime(h.date) + '</div>' +
-                    '</div>' +
-                    '<div class="item-right">' +
-                        '<div class="item-amount" style="color:' + color + '">' + sign + fmt(h.amount) + '</div>' +
-                        '<button type="button" class="history-del-btn" ' +
-                            'data-action="history-del" data-id="' + esc(h.id) + '" ' +
-                            'aria-label="Удалить запись">✕</button>' +
-                    '</div>' +
-                '</div>';
+        if (totalFiltered > visibleCount) {
+            historyHtml += '<div class="history-load-more" id="historyLoadMore">Показано ' +
+                visibleCount + ' из ' + totalFiltered + ' — прокрути вниз</div>';
         }
     }
 
@@ -1261,20 +1356,140 @@ function renderBalance(c) {
 
     historyHtml +=
         '<div class="summary-box">' +
-            '<span>Доходы: <span class="summary-val" style="color:var(--green)">' + fmt(income) + '</span></span>' +
-            '<span>Расходы: <span class="summary-val" style="color:var(--red)">' + fmt(expense) + '</span></span>' +
+            '<span>Доходы за месяц: <span class="summary-val" style="color:var(--green)">' + fmt(income) + '</span></span>' +
+            '<span>Расходы за месяц: <span class="summary-val" style="color:var(--red)">' + fmt(expense) + '</span></span>' +
         '</div>' +
     '</div>';
 
     c.innerHTML = formHtml + historyHtml;
+
+    var searchEl = document.getElementById('historySearch');
+    if (searchEl) searchEl.addEventListener('input', handleHistorySearch);
 }
 
-function setHistoryFilter(f) {
-    historyFilter = f;
-    renderFiltersBar();
+/* =========================================================================
+   ПОИСК
+   ========================================================================= */
+var _searchTimer = null;
+function handleHistorySearch(e) {
+    historySearch = e.target.value;
+    historyViewCount = 50;
+
+    if (_searchTimer) clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(function () {
+        var c = document.getElementById('mainContent');
+        if (!c) return;
+        var scrollTop = c.scrollTop;
+        renderBalance(c);
+        c.scrollTop = scrollTop;
+        var el = document.getElementById('historySearch');
+        if (el) {
+            el.focus();
+            var len = el.value.length;
+            try { el.setSelectionRange(len, len); } catch (_) {}
+        }
+    }, 200);
+}
+
+/* =========================================================================
+   ПАГИНАЦИЯ (бесконечная подгрузка при скролле)
+   ========================================================================= */
+function handleContentScroll() {
+    if (currentTab !== 'balance') return;
+    var el = document.getElementById('mainContent');
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - 200) return;
+
+    var all = getFilteredHistory();
+    if (historyViewCount >= all.length) return;
+
+    var list = document.getElementById('historyList');
+    var loadMore = document.getElementById('historyLoadMore');
+    if (!list) return;
+
+    var start = historyViewCount;
+    var next = Math.min(historyViewCount + 50, all.length);
+
+    var appendHtml = '';
+    for (var i = start; i < next; i++) {
+        appendHtml += renderHistoryItem(all[i]);
+    }
+
+    if (loadMore) {
+        loadMore.insertAdjacentHTML('beforebegin', appendHtml);
+        if (next >= all.length) {
+            loadMore.parentNode.removeChild(loadMore);
+        } else {
+            loadMore.textContent = 'Показано ' + next + ' из ' + all.length + ' — прокрути вниз';
+        }
+    } else {
+        list.insertAdjacentHTML('beforeend', appendHtml);
+    }
+
+    historyViewCount = next;
+}
+
+/* =========================================================================
+   ФИЛЬТР ПО КАТЕГОРИЯМ
+   ========================================================================= */
+function openCategoryFilter() {
+    var html = '<h3>Фильтр по категориям</h3>' +
+        '<p style="font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.4;">' +
+            'Отметь, что показывать. Ничего не отмечено = все записи.' +
+        '</p>';
+
+    html += '<div class="cat-filter-subtitle">Расходы</div><div class="cat-filter-list">';
+    for (var i = 0; i < CATEGORIES.length; i++) {
+        var cat = CATEGORIES[i];
+        var checked = historyCatFilter.indexOf(cat.id) !== -1;
+        html +=
+            '<label class="cat-filter-row">' +
+                '<input type="checkbox" data-cat-filter="' + esc(cat.id) + '"' + (checked ? ' checked' : '') + '>' +
+                '<span class="cf-dot" style="background:' + cat.color + '"></span>' +
+                '<span class="cf-label">' + cat.icon + ' ' + esc(cat.name) + '</span>' +
+            '</label>';
+    }
+    html += '</div>';
+
+    html += '<div class="cat-filter-subtitle">Доходы</div><div class="cat-filter-list">';
+    for (var j = 0; j < CATEGORIES_INCOME.length; j++) {
+        var catI = CATEGORIES_INCOME[j];
+        var checkedI = historyCatFilter.indexOf(catI.id) !== -1;
+        html +=
+            '<label class="cat-filter-row">' +
+                '<input type="checkbox" data-cat-filter="' + esc(catI.id) + '"' + (checkedI ? ' checked' : '') + '>' +
+                '<span class="cf-dot" style="background:' + catI.color + '"></span>' +
+                '<span class="cf-label">' + catI.icon + ' ' + esc(catI.name) + '</span>' +
+            '</label>';
+    }
+    html += '</div>';
+
+    html += '<div class="btn-row" style="margin-top:14px;">' +
+        '<button type="button" class="btn-full btn-secondary" data-action="cat-filter-reset">Сбросить</button>' +
+        '<button type="button" class="btn-full btn-primary" data-action="cat-filter-apply">Готово</button>' +
+    '</div>';
+
+    showModal(html);
+}
+
+function applyCategoryFilter() {
+    var checkboxes = document.querySelectorAll('[data-cat-filter]');
+    var newFilter = [];
+    for (var i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].checked) newFilter.push(checkboxes[i].getAttribute('data-cat-filter'));
+    }
+    historyCatFilter = newFilter;
+    historyViewCount = 50;
+    hideModal();
     renderBalance(document.getElementById('mainContent'));
 }
 
+function resetCategoryFilter() {
+    var checkboxes = document.querySelectorAll('[data-cat-filter]');
+    for (var i = 0; i < checkboxes.length; i++) checkboxes[i].checked = false;
+}
+
+// === ЧАСТЬ 6 ЗАКОНЧЕНА ===
 /* =========================================================================
    ОПЕРАЦИЯ С ОСТАТКОМ
    ========================================================================= */
@@ -1329,7 +1544,7 @@ function commitOp(sign, amt, desc, categoryId, delta) {
 }
 
 /* =========================================================================
-   МОДАЛКА ВЫБОРА КАТЕГОРИИ
+   МОДАЛКА ВЫБОРА КАТЕГОРИИ (для доходов и расходов)
    ========================================================================= */
 var _pendingOp = null;
 
@@ -1381,8 +1596,6 @@ function cancelCategoryPicker() {
     if (amtInput) { try { amtInput.focus(); } catch (_) {} }
 }
 
-// === ЧАСТЬ 5 ЗАКОНЧЕНА ===
-
 /* =========================================================================
    ХЕЛПЕР: спиннеры даты
    ========================================================================= */
@@ -1428,6 +1641,7 @@ function readDateSelects(prefix, sourceIso) {
     return partsToIso(day, month, year, sourceIso);
 }
 
+// === ЧАСТЬ 7 ЗАКОНЧЕНА ===
 /* =========================================================================
    TAB: DEBTS
    ========================================================================= */
@@ -1775,8 +1989,7 @@ function delPlan(id) {
     );
 }
 
-// === ЧАСТЬ 6 ЗАКОНЧЕНА ===
-
+// === ЧАСТЬ 8 ЗАКОНЧЕНА ===
 /* =========================================================================
    РЕДАКТИРОВАНИЕ ОПЕРАЦИИ ИЗ ИСТОРИИ
    ========================================================================= */
@@ -2084,8 +2297,7 @@ function deleteHistoryItem(id, refund, restore) {
     else if (currentTab === 'settings')  renderSettings(c);
 }
 
-// === ЧАСТЬ 7 ЗАКОНЧЕНА ===
-
+// === ЧАСТЬ 9 ЗАКОНЧЕНА ===
 /* =========================================================================
    ANALYTICS — группировка по таймфреймам
    ========================================================================= */
@@ -2424,8 +2636,7 @@ function drawChart(canvas, slots, tfId) {
     ctx.stroke();
 }
 
-// === ЧАСТЬ 8 ЗАКОНЧЕНА ===
-
+// === ЧАСТЬ 10 ЗАКОНЧЕНА ===
 /* =========================================================================
    TAB: ANALYTICS
    ========================================================================= */
@@ -2699,8 +2910,7 @@ function hideChartTooltip() {
     }
 }
 
-// === ЧАСТЬ 9 ЗАКОНЧЕНА ===
-
+// === ЧАСТЬ 11 ЗАКОНЧЕНА ===
 /* =========================================================================
    TAB: SETTINGS
    ========================================================================= */
@@ -2818,8 +3028,7 @@ function resetAll() {
 }
 
 /* =========================================================================
-   MODAL — базовая инфраструктура
-   ВАЖНО: автофокус убран. Никаких `focus()` при открытии.
+   MODAL — базовая инфраструктура (БЕЗ автофокуса)
    ========================================================================= */
 var modalVisible = false;
 var _confirmCallback = null;
@@ -2830,7 +3039,7 @@ function showModal(html) {
     content.innerHTML = html;
     overlay.classList.add('visible');
     modalVisible = true;
-    /* Автофокус убран — пользователь сам тапнет на поле, если нужно */
+    /* Автофокус убран — пользователь сам тапнет на поле */
 }
 
 function hideModal() {
@@ -2882,7 +3091,7 @@ function handleConfirmCancel() {
 }
 
 /* =========================================================================
-   PAY DEBT MODAL
+   PAY DEBT MODAL — частичный возврат долга
    ========================================================================= */
 function showPayDebt(id) {
     var d = null;
@@ -2926,8 +3135,7 @@ function debtQuickFill(amount) {
     }
 }
 
-// === ЧАСТЬ 10 ЗАКОНЧЕНА ===
-
+// === ЧАСТЬ 12 ЗАКОНЧЕНА ===
 /* =========================================================================
    ДЕЛЕГИРОВАНИЕ СОБЫТИЙ
    ========================================================================= */
@@ -2938,6 +3146,11 @@ var ACTIONS = {
     /* Категории (новая операция — доход или расход) */
     'cat-pick':    function (el) { pickCategory(el.getAttribute('data-id')); },
     'cat-cancel':  function ()   { cancelCategoryPicker(); },
+
+    /* Фильтр категорий (модалка с чекбоксами) */
+    'open-cat-filter':  function ()   { openCategoryFilter(); },
+    'cat-filter-apply': function ()   { applyCategoryFilter(); },
+    'cat-filter-reset': function ()   { resetCategoryFilter(); },
 
     /* Категории (редактирование) */
     'edit-cat-pick': function (el) { editPickCategory(el.getAttribute('data-id')); },
@@ -3046,11 +3259,13 @@ function bindEvents() {
         if (btn) switchTab(btn.getAttribute('data-tab'));
     });
 
-    /* Полоса фильтров */
+    /* Полоса фильтров (Все / Доходы / Расходы / Переводы) */
     document.getElementById('filtersBar').addEventListener('click', handleClick);
 
-    /* Основной контент — кнопки + canvas */
-    document.getElementById('mainContent').addEventListener('click', handleMainContentClick);
+    /* Основной контент: кнопки + canvas + скролл */
+    var contentEl = document.getElementById('mainContent');
+    contentEl.addEventListener('click', handleMainContentClick);
+    contentEl.addEventListener('scroll', handleContentScroll, { passive: true });
 
     /* Модалка: клик по фону или по кнопкам */
     document.getElementById('modalOverlay').addEventListener('click', function (e) {
@@ -3062,7 +3277,7 @@ function bindEvents() {
         handleClick(e);
     });
 
-    /* Модалка: change для чекбоксов */
+    /* Модалка: change для чекбоксов (удаление истории) */
     document.getElementById('modalOverlay').addEventListener('change', handleModalChange);
 
     /* Импорт файла */
@@ -3102,8 +3317,7 @@ function bindEvents() {
     });
 }
 
-// === ЧАСТЬ 11 ЗАКОНЧЕНА ===
-
+// === ЧАСТЬ 13 ЗАКОНЧЕНА ===
 /* =========================================================================
    INIT
    ========================================================================= */
