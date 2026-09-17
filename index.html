@@ -180,14 +180,16 @@
         padding: 0;
         font-family: inherit;
     }
+// === ЧАСТЬ 1 ЗАКОНЧЕНА ===
 
+    /* LISTS — фикс выравнивания: суммы не съезжают, комментарий обрезается */
     .list-item {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         padding: 12px 0;
         border-bottom: 1px solid rgba(255,255,255,0.05);
-        gap: 8px;
+        gap: 10px;
     }
     .list-item:last-child { border-bottom: none; }
     .list-item.tappable {
@@ -198,21 +200,54 @@
         transition: background 0.15s;
     }
     .list-item.tappable:active { background: rgba(0,210,255,0.06); }
-// === ЧАСТЬ 1 ЗАКОНЧЕНА ===
 
-    .item-left { flex: 1 1 auto; min-width: 0; }
+    .item-left {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+    }
     .item-name {
         font-size: 15px;
         font-weight: 500;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
     }
-    .item-sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
-    .item-right { text-align: right; margin-left: 10px; flex-shrink: 0; }
-    .item-amount { font-weight: bold; font-size: 15px; }
+    .item-name .item-desc {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        flex: 0 1 auto;
+    }
+    .item-sub {
+        font-size: 11px;
+        color: var(--dim);
+        margin-top: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .item-right {
+        text-align: right;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        min-width: 80px;
+    }
+    .item-amount {
+        font-weight: bold;
+        font-size: 15px;
+        white-space: nowrap;
+        line-height: 1.2;
+    }
     .item-actions {
-        margin-top: 6px;
         display: flex;
         gap: 6px;
         justify-content: flex-end;
@@ -254,7 +289,6 @@
         align-items: center;
         justify-content: center;
         padding: 0;
-        margin-left: 8px;
         flex-shrink: 0;
         line-height: 1;
         transition: border-color 0.15s, color 0.15s;
@@ -266,9 +300,10 @@
         font-size: 10px;
         padding: 1px 6px;
         border-radius: 4px;
-        margin-left: 6px;
         vertical-align: middle;
         font-weight: 500;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .cat-badge.food         { background: rgba(255,159,67,0.18); color: #ff9f43; }
     .cat-badge.fun          { background: rgba(165,94,234,0.18); color: #a55eea; }
@@ -400,15 +435,20 @@
     }
 // === ЧАСТЬ 2 ЗАКОНЧЕНА ===
 
+    /* MODAL — фикс скролла: скроллится overlay, а не modal.
+       Модалка выравнивается по верху, чтобы клавиатура не перекрывала кнопки. */
     .modal-overlay {
         position: fixed;
         top: 0; left: 0; right: 0; bottom: 0;
         background: rgba(0,0,0,0.85);
         display: none;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start;
         z-index: 100;
         padding: 20px;
+        padding-bottom: calc(20px + var(--safe-bot));
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
     .modal-overlay.visible { display: flex; }
     .modal {
@@ -418,9 +458,8 @@
         padding: 20px;
         border-radius: 16px;
         border: 1px solid var(--border);
-        max-height: 80vh;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
+        margin: auto 0;
+        flex-shrink: 0;
     }
     .modal h3 { margin: 0 0 15px 0; color: var(--text); font-size: 18px; }
 
@@ -516,10 +555,8 @@
     }
     .modal .checkbox-row.disabled { opacity: 0.4; cursor: not-allowed; }
     .modal .checkbox-row input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-        margin: 0;
-        margin-top: 1px;
+        width: 20px; height: 20px;
+        margin: 0; margin-top: 1px;
         flex-shrink: 0;
         accent-color: var(--blue);
         cursor: pointer;
@@ -581,11 +618,8 @@
         background: rgba(0,210,255,0.08);
     }
 
-    .tf-switcher {
-        display: flex;
-        gap: 4px;
-        margin-bottom: 12px;
-    }
+    /* ANALYTICS */
+    .tf-switcher { display: flex; gap: 4px; margin-bottom: 12px; }
     .tf-btn {
         flex: 1;
         background: transparent;
@@ -606,11 +640,7 @@
         border-color: var(--blue);
     }
 
-    .chart-wrap {
-        position: relative;
-        width: 100%;
-        margin-bottom: 12px;
-    }
+    .chart-wrap { position: relative; width: 100%; margin-bottom: 12px; }
     .chart-canvas {
         width: 100%;
         height: 320px;
@@ -792,9 +822,9 @@ var DEBT_PARTIAL_PREFIX = 'Частичный возврат: ';
 var DEBT_PARTIAL_MARKER = ' (остаток ';
 
 var CATEGORIES = [
-    { id: 'food',  name: 'Еда',             icon: '🍕', cssClass: 'food',  color: '#ff9f43' },
-    { id: 'fun',   name: 'Развлечения',     icon: '🎮', cssClass: 'fun',   color: '#a55eea' },
-    { id: 'other', name: 'Остальные траты', icon: '💸', cssClass: 'other', color: '#778ca3' }
+    { id: 'food',  name: 'Еда',            icon: '🍕', cssClass: 'food',  color: '#ff9f43' },
+    { id: 'fun',   name: 'Развлечения',    icon: '🎮', cssClass: 'fun',   color: '#a55eea' },
+    { id: 'other', name: 'Прочее',         icon: '💸', cssClass: 'other', color: '#778ca3' }
 ];
 
 var CATEGORIES_INCOME = [
@@ -999,8 +1029,6 @@ function loadState() {
     if (!storageAvailable) return;
     try {
         var raw = window.localStorage.getItem(STORAGE_KEY);
-
-        // Миграция со старого ключа v7, если v8 пусто
         if (!raw) {
             var old = window.localStorage.getItem('fin_shield_v7');
             if (old) {
@@ -1008,7 +1036,6 @@ function loadState() {
                 console.log('[FinanceShield] migrated from v7 storage');
             }
         }
-
         if (!raw) return;
         var parsed = JSON.parse(raw);
         state = migrate(parsed);
@@ -1027,20 +1054,12 @@ function migrate(raw) {
     s.history = Array.isArray(raw.history) ? raw.history.filter(isValidHistory) : [];
     s.tf      = isValidTf(raw.tf) ? raw.tf : 'D1';
 
-    // Постобработка истории:
-    // — присвоить id, если нет
-    // — присвоить категорию расходам и доходам, если нет
     for (var i = 0; i < s.history.length; i++) {
         var h = s.history[i];
         if (!h.id) h.id = uid();
-        if (h.type === TYPE.EXPENSE && !h.categoryId) {
-            h.categoryId = DEFAULT_CATEGORY_ID;
-        }
-        if (h.type === TYPE.INCOME && !h.categoryId) {
-            h.categoryId = DEFAULT_INCOME_CATEGORY_ID;
-        }
+        if (h.type === TYPE.EXPENSE && !h.categoryId) h.categoryId = DEFAULT_CATEGORY_ID;
+        if (h.type === TYPE.INCOME  && !h.categoryId) h.categoryId = DEFAULT_INCOME_CATEGORY_ID;
     }
-
     return s;
 }
 
@@ -1068,13 +1087,8 @@ function isValidHistory(h) {
 }
 
 function saveState() {
-    if (state.history.length > HISTORY_LIMIT) {
-        state.history.length = HISTORY_LIMIT;
-    }
-    if (!storageAvailable) {
-        renderHeader();
-        return;
-    }
+    if (state.history.length > HISTORY_LIMIT) state.history.length = HISTORY_LIMIT;
+    if (!storageAvailable) { renderHeader(); return; }
     try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
@@ -1135,7 +1149,6 @@ function switchTab(tab) {
 function renderFiltersBar() {
     var bar = document.getElementById('filtersBar');
     if (!bar) return;
-
     var html = '<div class="filters">';
     for (var i = 0; i < FILTERS.length; i++) {
         var f = FILTERS[i];
@@ -1144,20 +1157,14 @@ function renderFiltersBar() {
             '" data-action="filter" data-filter="' + f.id + '">' + f.label + '</button>';
     }
     html += '</div>';
-
     bar.innerHTML = html;
     bar.classList.add('visible');
 }
 
 function hideFiltersBar() {
     var bar = document.getElementById('filtersBar');
-    if (bar) {
-        bar.classList.remove('visible');
-        bar.innerHTML = '';
-    }
+    if (bar) { bar.classList.remove('visible'); bar.innerHTML = ''; }
 }
-
-// === ЧАСТЬ 5 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    TAB: BALANCE
@@ -1174,7 +1181,6 @@ function renderBalance(c) {
             '</div>' +
         '</div>';
 
-    // Фильтр: "Расходы" — всё, что < 0 (включая возвраты долгов, вклады в цели)
     var filtered;
     if (historyFilter === 'all') {
         filtered = state.history;
@@ -1200,7 +1206,6 @@ function renderBalance(c) {
             var color = isPos ? 'var(--green)' : 'var(--red)';
             var sign  = isPos ? '+' : '';
 
-            // Бейдж категории — для любых операций, где есть categoryId
             var badgeHtml = '';
             if (h.categoryId) {
                 var cat = getCategoryAny(h.categoryId);
@@ -1213,10 +1218,13 @@ function renderBalance(c) {
             historyHtml +=
                 '<div class="list-item tappable" data-action="history-edit" data-id="' + esc(h.id) + '">' +
                     '<div class="item-left">' +
-                        '<div class="item-name">' + (esc(h.desc) || 'Без описания') + badgeHtml + '</div>' +
+                        '<div class="item-name">' +
+                            '<span class="item-desc">' + (esc(h.desc) || 'Без описания') + '</span>' +
+                            badgeHtml +
+                        '</div>' +
                         '<div class="item-sub">' + formatDateTime(h.date) + '</div>' +
                     '</div>' +
-                    '<div class="item-right" style="display:flex; align-items:center;">' +
+                    '<div class="item-right">' +
                         '<div class="item-amount" style="color:' + color + '">' + sign + fmt(h.amount) + '</div>' +
                         '<button type="button" class="history-del-btn" ' +
                             'data-action="history-del" data-id="' + esc(h.id) + '" ' +
@@ -1269,8 +1277,6 @@ function doOp(sign) {
 
     var desc = descInput.value.trim();
     var opType = (sign > 0) ? TYPE.INCOME : TYPE.EXPENSE;
-
-    // Для любой операции (доход или расход) — выбор категории
     showCategoryPicker(amt, desc, opType, null);
 }
 
@@ -1281,14 +1287,11 @@ function applyOp(sign, amt, desc, categoryId) {
         showConfirm(
             'Баланс станет отрицательным',
             'После операции остаток: ' + fmt(state.balance + delta) + '. Продолжить?',
-            function () {
-                commitOp(sign, amt, desc, categoryId, delta);
-            },
+            function () { commitOp(sign, amt, desc, categoryId, delta); },
             { danger: true, okLabel: 'Всё равно списать' }
         );
         return;
     }
-
     commitOp(sign, amt, desc, categoryId, delta);
 }
 
@@ -1302,11 +1305,7 @@ function commitOp(sign, amt, desc, categoryId, delta) {
         desc: desc,
         amount: delta
     };
-
-    // Категория — и для доходов, и для расходов
-    if (categoryId) {
-        record.categoryId = categoryId;
-    }
+    if (categoryId) record.categoryId = categoryId;
 
     state.history.unshift(record);
 
@@ -1316,7 +1315,7 @@ function commitOp(sign, amt, desc, categoryId, delta) {
 }
 
 /* =========================================================================
-   МОДАЛКА ВЫБОРА КАТЕГОРИИ (работает и для доходов, и для расходов)
+   МОДАЛКА ВЫБОРА КАТЕГОРИИ
    ========================================================================= */
 var _pendingOp = null;
 
@@ -1368,7 +1367,7 @@ function cancelCategoryPicker() {
     if (amtInput) { try { amtInput.focus(); } catch (_) {} }
 }
 
-// === ЧАСТЬ 6 ЗАКОНЧЕНА ===
+// === ЧАСТЬ 5 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    ХЕЛПЕР: спиннеры даты
@@ -1563,8 +1562,6 @@ function delDebt(id) {
         { danger: true, okLabel: 'Удалить' }
     );
 }
-
-// === ЧАСТЬ 7 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    TAB: PLANS
@@ -1764,7 +1761,7 @@ function delPlan(id) {
     );
 }
 
-// === ЧАСТЬ 8 ЗАКОНЧЕНА ===
+// === ЧАСТЬ 6 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    РЕДАКТИРОВАНИЕ ОПЕРАЦИИ ИЗ ИСТОРИИ
@@ -1789,7 +1786,6 @@ function showEditHistoryItem(id) {
     _editState.desc = item.desc || '';
     _editState.dateIso = item.date;
 
-    // Определяем категорию по типу операции
     if (item.type === TYPE.EXPENSE) {
         _editState.catId = item.categoryId || DEFAULT_CATEGORY_ID;
     } else if (item.type === TYPE.INCOME) {
@@ -1804,7 +1800,6 @@ function showEditHistoryItem(id) {
 function renderEditHistoryModal(item) {
     var dateHtml = buildDateSelectsHtml(_editState.dateIso, 'edit');
 
-    // Категории — для расходов и для доходов. Для переводов — нет.
     var catHtml = '';
     if (item.type === TYPE.EXPENSE || item.type === TYPE.INCOME) {
         var list = getCategoriesByType(item.type);
@@ -2075,7 +2070,7 @@ function deleteHistoryItem(id, refund, restore) {
     else if (currentTab === 'settings')  renderSettings(c);
 }
 
-// === ЧАСТЬ 9 ЗАКОНЧЕНА ===
+// === ЧАСТЬ 7 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    ANALYTICS — группировка по таймфреймам
@@ -2096,7 +2091,6 @@ function buildChartData(tfId) {
         startDate.setDate(startDate.getDate() - tf.days + 1);
         startDate.setHours(0, 0, 0, 0);
     } else if (tf.unit === 'week') {
-        // Начало недели: понедельник, 12 недель назад
         startDate = new Date(todayEnd);
         var dow = startDate.getDay();
         var diffToMon = (dow + 6) % 7;
@@ -2416,7 +2410,7 @@ function drawChart(canvas, slots, tfId) {
     ctx.stroke();
 }
 
-// === ЧАСТЬ 10 ЗАКОНЧЕНА ===
+// === ЧАСТЬ 8 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    TAB: ANALYTICS
@@ -2463,7 +2457,6 @@ function renderAnalytics(c) {
     var startTs = slots.length > 0 ? slots[0].start.getTime() : 0;
     var endTs   = slots.length > 0 ? slots[slots.length - 1].end.getTime() : Date.now();
 
-    // Категории расходов и доходов — отдельно
     var expSums = {}, incSums = {};
     for (var e0 = 0; e0 < CATEGORIES.length; e0++) expSums[CATEGORIES[e0].id] = 0;
     for (var i0 = 0; i0 < CATEGORIES_INCOME.length; i0++) incSums[CATEGORIES_INCOME[i0].id] = 0;
@@ -2602,7 +2595,6 @@ function showChartTooltip(slot, tapX, tapY) {
     var netSign = net >= 0 ? '+' : '';
     var netClass = net >= 0 ? 'pos' : 'neg';
 
-    // Категории за этот слот — расходы и доходы отдельно
     var expSums = {}, incSums = {};
     for (var e0 = 0; e0 < CATEGORIES.length; e0++) expSums[CATEGORIES[e0].id] = 0;
     for (var i0 = 0; i0 < CATEGORIES_INCOME.length; i0++) incSums[CATEGORIES_INCOME[i0].id] = 0;
@@ -2693,7 +2685,7 @@ function hideChartTooltip() {
     }
 }
 
-// === ЧАСТЬ 11 ЗАКОНЧЕНА ===
+// === ЧАСТЬ 9 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    TAB: SETTINGS
@@ -2813,6 +2805,7 @@ function resetAll() {
 
 /* =========================================================================
    MODAL — базовая инфраструктура
+   ВАЖНО: автофокус убран. Никаких `focus()` при открытии.
    ========================================================================= */
 var modalVisible = false;
 var _confirmCallback = null;
@@ -2823,13 +2816,7 @@ function showModal(html) {
     content.innerHTML = html;
     overlay.classList.add('visible');
     modalVisible = true;
-
-    requestAnimationFrame(function () {
-        var inp = content.querySelector(
-            'input:not([type="checkbox"]):not([type="radio"]):not([type="file"])'
-        );
-        if (inp) { try { inp.focus(); } catch (_) {} }
-    });
+    /* Автофокус убран — пользователь сам тапнет на поле, если нужно */
 }
 
 function hideModal() {
@@ -2921,11 +2908,11 @@ function debtQuickFill(amount) {
     var input = document.getElementById('debtPayAmount');
     if (input) {
         input.value = String(amount);
-        try { input.focus(); } catch (_) {}
+        /* Без focus — просто заполнили поле */
     }
 }
 
-// === ЧАСТЬ 12 ЗАКОНЧЕНА ===
+// === ЧАСТЬ 10 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    ДЕЛЕГИРОВАНИЕ СОБЫТИЙ
@@ -3101,7 +3088,7 @@ function bindEvents() {
     });
 }
 
-// === ЧАСТЬ 13 ЗАКОНЧЕНА ===
+// === ЧАСТЬ 11 ЗАКОНЧЕНА ===
 
 /* =========================================================================
    INIT
