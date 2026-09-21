@@ -1553,8 +1553,6 @@ var _bulkState = {};
 function bulkEditCategory() {
     if (selectedIds.length === 0) return;
 
-    /* Определяем, какие категории показывать: если среди выбранных есть расходы — расходные,
-       если есть доходы — доходные. Показываем оба списка, если смешанные. */
     var hasExpense = false, hasIncome = false;
     for (var i = 0; i < selectedIds.length; i++) {
         for (var j = 0; j < state.history.length; j++) {
@@ -1566,41 +1564,51 @@ function bulkEditCategory() {
         }
     }
 
+    function makeBtn(cat, type) {
+        return '<button type="button" ' +
+                'data-action="bulk-apply-category" data-id="' + esc(cat.id) + '" data-type="' + type + '" ' +
+                'style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;' +
+                    'background:rgba(255,255,255,0.03);border:1px solid #2a3548;border-radius:10px;' +
+                    'color:#e0e6ed;font-size:15px;font-family:inherit;cursor:pointer;' +
+                    'min-height:52px;text-align:left;box-sizing:border-box;">' +
+                '<span style="width:38px;height:38px;border-radius:50%;' +
+                    'display:inline-flex;align-items:center;justify-content:center;' +
+                    'font-size:20px;background:' + cat.color + '33;flex-shrink:0;">' +
+                    cat.icon +
+                '</span>' +
+                '<span style="font-weight:500;">' + esc(cat.name) + '</span>' +
+            '</button>';
+    }
+
     var html = '<h3>Сменить категорию</h3>' +
-        '<p style="font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.4;">' +
+        '<p style="font-size:12px;color:#9aa9c0;margin:0 0 14px;line-height:1.4;">' +
             'Для ' + selectedIds.length + ' операций.' +
         '</p>';
 
     if (hasExpense) {
-        html += '<div class="cat-filter-subtitle">Расходы</div><div class="cat-list">';
+        html += '<div style="font-size:11px;color:#9aa9c0;text-transform:uppercase;letter-spacing:0.4px;margin:0 0 8px;">Расходы</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
         for (var e = 0; e < CATEGORIES.length; e++) {
-            var cat = CATEGORIES[e];
-            html += '<button type="button" class="cat-btn" ' +
-                'data-action="bulk-apply-category" data-id="' + esc(cat.id) + '" data-type="' + TYPE.EXPENSE + '">' +
-                '<span class="cat-icon">' + cat.icon + '</span>' +
-                '<span>' + esc(cat.name) + '</span>' +
-            '</button>';
+            html += makeBtn(CATEGORIES[e], TYPE.EXPENSE);
         }
         html += '</div>';
     }
 
     if (hasIncome) {
-        html += '<div class="cat-filter-subtitle">Доходы</div><div class="cat-list">';
+        html += '<div style="font-size:11px;color:#9aa9c0;text-transform:uppercase;letter-spacing:0.4px;margin:0 0 8px;">Доходы</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
         for (var inc = 0; inc < CATEGORIES_INCOME.length; inc++) {
-            var catI = CATEGORIES_INCOME[inc];
-            html += '<button type="button" class="cat-btn" ' +
-                'data-action="bulk-apply-category" data-id="' + esc(catI.id) + '" data-type="' + TYPE.INCOME + '">' +
-                '<span class="cat-icon">' + catI.icon + '</span>' +
-                '<span>' + esc(catI.name) + '</span>' +
-            '</button>';
+            html += makeBtn(CATEGORIES_INCOME[inc], TYPE.INCOME);
         }
         html += '</div>';
     }
 
-    html += '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>';
+    html += '<button type="button" style="width:100%;padding:14px;border:1px solid #2a3548;border-radius:8px;' +
+        'background:transparent;color:#9aa9c0;font-size:15px;font-weight:bold;font-family:inherit;' +
+        'cursor:pointer;margin-top:6px;" data-action="close-modal">Отмена</button>';
 
     showModal(html);
-}
+  }
 
 function bulkApplyCategory(catId, forcedType) {
     for (var i = 0; i < state.history.length; i++) {
