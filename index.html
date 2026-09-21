@@ -1257,6 +1257,11 @@ function getFilteredHistory() {
         });
     }
 
+    // Сортировка: новее сверху (по дате и времени)
+    filtered = filtered.slice().sort(function (a, b) {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+
     return filtered;
 }
 
