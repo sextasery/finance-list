@@ -482,7 +482,7 @@
     .date-picker-grid {
         display: grid;
         gap: 4px;
-        max-height: 168px;
+        max-height: 100px;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         padding: 2px;
@@ -497,9 +497,9 @@
         background: transparent;
         border: 1px solid transparent;
         color: var(--text);
-        padding: 8px 4px;
+        padding: 5px 2px;
         border-radius: 6px;
-        font-size: 13px;
+        font-size: 12px;
         font-family: inherit;
         cursor: pointer;
         text-align: center;
@@ -1172,11 +1172,11 @@ function renderBalance(c) {
         selectionBarHtml =
             '<div class="selection-bar">' +
                 '<span class="sb-count">Выбрано: ' + selectedIds.length + '</span>' +
-                '<button type="button" data-action="bulk-edit-category">Категория</button>' +
-                '<button type="button" data-action="bulk-edit-date">Дата</button>' +
-                '<button type="button" data-action="bulk-edit-name">Название</button>' +
-                '<button type="button" class="danger" data-action="bulk-delete">Удалить</button>' +
-                '<button type="button" data-action="exit-selection">Отмена</button>' +
+                '<button type="button" data-action="bulk-edit-category">🏷️ Категория</button>' + 
+                '<button type="button" data-action="bulk-edit-date">📅 Дата</button>' + 
+                '<button type="button" data-action="bulk-edit-name">✏️ Название</button>' + 
+                '<button type="button" class="danger" data-action="bulk-delete">🗑️ Удалить</button>' + 
+                '<button type="button" data-action="exit-selection">✕ Отмена</button>' + 
             '</div>';
     }
 
@@ -3258,17 +3258,57 @@ var _confirmCallback = null;
 function showModal(html) {
     var content = document.getElementById('modalContent');
     var overlay = document.getElementById('modalOverlay');
-    content.innerHTML = html;
-    overlay.classList.add('visible');
+
+    /* X-кнопка автоматически в каждой модалке */
+    content.innerHTML = '<button type="button" class="modal-x" data-action="close-modal" aria-label="Закрыть">✕</button>' + html;
+
+    /* Форсим инлайн-стили — гарантия, что overlay закроет экран и будет скроллиться */
+    overlay.style.display = 'block';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.right = '0';
+    overlay.style.bottom = '0';
+    overlay.style.background = 'rgba(0,0,0,0.9)';
+    overlay.style.zIndex = '100';
+    overlay.style.overflowY = 'auto';
+    overlay.style.overflowX = 'hidden';
+    overlay.style.webkitOverflowScrolling = 'touch';
+    overlay.style.padding = '16px';
+    overlay.style.paddingBottom = '260px';
+    overlay.style.touchAction = 'pan-y';
+    overlay.scrollTop = 0;
+
+    /* И стили для самой модалки — крестик сверху, отступ */
+    content.style.position = 'relative';
+    content.style.paddingTop = '52px';
+    content.style.paddingBottom = '20px';
+    content.style.paddingLeft = '20px';
+    content.style.paddingRight = '20px';
+    content.style.margin = '0 auto';
+    content.style.maxWidth = '400px';
+
+    /* Создаём стиль для крестика один раз */
+    if (!document.getElementById('modalXDynamicStyle')) {
+        var st = document.createElement('style');
+        st.id = 'modalXDynamicStyle';
+        st.textContent =
+            '.modal-x{position:absolute;top:10px;right:10px;background:transparent;border:1px solid #2a3548;color:#9aa9c0;font-size:16px;font-family:inherit;cursor:pointer;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;z-index:10}' +
+            '.modal-x:active{color:#ff4757;border-color:#ff4757}';
+        document.head.appendChild(st);
+    }
+
     modalVisible = true;
-    /* Автофокус убран — пользователь сам тапнет на поле */
 }
 
 function hideModal() {
     var overlay = document.getElementById('modalOverlay');
     var content = document.getElementById('modalContent');
+
+    overlay.style.display = 'none';
     overlay.classList.remove('visible');
     content.innerHTML = '';
+
     modalVisible = false;
     _confirmCallback = null;
     _delHistState = { id: null, refund: false, restore: false, bulkMode: false };
