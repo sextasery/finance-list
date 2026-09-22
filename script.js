@@ -2417,12 +2417,14 @@ function renderAnalytics(c) {
         }
     }
 
-    var totalExpTt = 0, totalIncTt = 0;
-    var totalExpSum = 0;
-    for (var e1 = 0; e1 < CATEGORIES.length; e1++) totalExpSum += expSums[CATEGORIES[e1].id] || 0;
-    var totalIncSum = 0;
-    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) totalIncSum += incSums[CATEGORIES_INCOME[i1].id] || 0;
-
+    var totalExpTt = 0;
+var totalIncTt = 0;
+for (var e1 = 0; e1 < CATEGORIES.length; e1++) {
+    totalExpTt += expSums[CATEGORIES[e1].id] || 0;
+}
+for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) {
+    totalIncTt += incSums[CATEGORIES_INCOME[i1].id] || 0;
+}
     var expRowsHtml = '';
     for (var ei = 0; ei < CATEGORIES.length; ei++) {
         var catE2 = CATEGORIES[ei];
