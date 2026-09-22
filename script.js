@@ -751,7 +751,7 @@ function buildDatePickerHtml(prefix, iso) {
             years[y] + '</button>';
     }
 
-    return '<div class="date-picker">' +
+    return '<div class="date-picker" data-prefix="' + esc(prefix) + '">' +
         '<div class="date-picker-row">' +
             '<div class="date-picker-label">День</div>' +
             '<div class="date-picker-grid days">' + dayCells + '</div>' +
@@ -782,8 +782,7 @@ function rerenderDatePicker(prefix) {
     var st = _datePickerState[prefix];
     if (!st) return;
 
-    var allPickers = document.querySelectorAll('.date-picker');
-    var host = allPickers.length > 0 ? allPickers[allPickers.length - 1] : null;
+    var host = document.querySelector('.date-picker[data-prefix="' + prefix + '"]');
     if (!host) return;
 
     var years = getYearRange();
@@ -1827,6 +1826,8 @@ function hideModal() {
     modalVisible = false;
     _confirmCallback = null;
     _delHistState = { id: null, refund: false, restore: false, bulkMode: false };
+    delete _datePickerState.periodFrom;
+    delete _datePickerState.periodTo;
 }
 
 function showConfirm(title, text, onOk, opts) {
@@ -2333,12 +2334,13 @@ function renderAnalytics(c) {
                 ? '<div class="cat-table">' + incRowsHtml + '</div>'
                 : '<div class="empty-state">За период доходов нет</div>') +
         '</div>' +
-        '<div class="card">' +
+            '<div class="card">' +
             '<div class="card-title" style="margin-bottom:10px">Расходы по категориям</div>' +
             (totalExpSum > 0
                 ? '<div class="cat-table">' + expRowsHtml + '</div>'
                 : '<div class="empty-state">За период расходов нет</div>') +
-        '</div>';
+        '</div>' +
+        buildPeriodBlockHtml();
 
     c.innerHTML = html;
 
@@ -2490,6 +2492,193 @@ function hideChartTooltip() {
         tt.style.display = 'none';
         tt.innerHTML = '';
     }
+}
+
+/* =========================================================================
+   АНАЛИЗ ПЕРИОДА — свечи
+   ========================================================================= */
+var _periodPickerState = {};
+
+function openPeriodPicker() {
+    var fromIso = state.periodFrom || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    var toIso   = state.periodTo   || new Date().toISOString();
+
+    delete _periodPickerState.from;
+    delete _periodPickerState.to;
+    ensureDatePickerState('periodFrom', fromIso);
+    ensureDatePickerState('periodTo', toIso);
+
+    renderPeriodPickerModal();
+}
+
+function renderPeriodPickerModal() {
+    var fromHtml = buildDatePickerHtml('periodFrom', _datePickerState.periodFrom ? 
+        partsToIso(_datePickerState.periodFrom.day, _datePickerState.periodFrom.month, _datePickerState.periodFrom.year, null) : new Date().toISOString());
+    var toHtml = buildDatePickerHtml('periodTo', _datePickerState.periodTo ?
+        partsToIso(_datePickerState.periodTo.day, _datePickerState.periodTo.month, _datePickerState.periodTo.year, null) : new Date().toISOString());
+
+    showModal(
+        '<h3>Выбрать период</h3>' +
+        '<div class="field-label">От</div>' +
+        fromHtml +
+        '<div class="field-label" style="margin-top:14px;">До</div>' +
+        toHtml +
+        '<button type="button" class="btn-full btn-primary" data-action="period-apply">Применить</button>' +
+        '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>'
+    );
+}
+
+function applyPeriod() {
+    var fromSt = _datePickerState.periodFrom;
+    var toSt   = _datePickerState.periodTo;
+    if (!fromSt || !toSt) return;
+
+    var fromDate = new Date(fromSt.year, fromSt.month - 1, fromSt.day, 0, 0, 0);
+    var toDate   = new Date(toSt.year, toSt.month - 1, toSt.day, 23, 59, 59);
+
+    if (fromDate > toDate) {
+        alert('Дата «От» позже, чем «До». Поменяй местами.');
+        return;
+    }
+
+    state.periodFrom = fromDate.toISOString();
+    state.periodTo = toDate.toISOString();
+
+    delete _datePickerState.periodFrom;
+    delete _datePickerState.periodTo;
+
+    saveState();
+    hideModal();
+    renderAnalytics(document.getElementById('mainContent'));
+}
+
+function clearPeriod() {
+    state.periodFrom = null;
+    state.periodTo = null;
+    delete _datePickerState.periodFrom;
+    delete _datePickerState.periodTo;
+    saveState();
+    renderAnalytics(document.getElementById('mainContent'));
+}
+
+function buildPeriodBlockHtml() {
+    if (!state.periodFrom || !state.periodTo) {
+        return '<div class="card">' +
+            '<div class="card-title" style="margin-bottom:12px">Анализ периода</div>' +
+            '<div class="period-empty">' +
+                '<button type="button" class="period-empty-btn" data-action="period-open">Выбрать период</button>' +
+            '</div>' +
+        '</div>';
+    }
+
+    var fromDate = new Date(state.periodFrom);
+    var toDate = new Date(state.periodTo);
+    var fromStr = fromDate.getDate() + ' ' + MONTHS_SHORT[fromDate.getMonth()] + ' ' + fromDate.getFullYear();
+    var toStr = toDate.getDate() + ' ' + MONTHS_SHORT[toDate.getMonth()] + ' ' + toDate.getFullYear();
+
+    var expSums = {}, incSums = {};
+    for (var e = 0; e < CATEGORIES.length; e++) expSums[CATEGORIES[e].id] = 0;
+    for (var i = 0; i < CATEGORIES_INCOME.length; i++) incSums[CATEGORIES_INCOME[i].id] = 0;
+
+    var fromTs = fromDate.getTime();
+    var toTs = toDate.getTime();
+
+    for (var k = 0; k < state.history.length; k++) {
+        var h = state.history[k];
+        var hTs = new Date(h.date).getTime();
+        if (hTs < fromTs || hTs > toTs) continue;
+        if (h.amount < 0) {
+            var catE = h.categoryId || DEFAULT_CATEGORY_ID;
+            if (expSums[catE] === undefined) expSums[catE] = 0;
+            expSums[catE] += Math.abs(h.amount);
+        } else if (h.amount > 0) {
+            var catI = h.categoryId || DEFAULT_INCOME_CATEGORY_ID;
+            if (incSums[catI] === undefined) incSums[catI] = 0;
+            incSums[catI] += h.amount;
+        }
+    }
+
+    var totalExp = 0, totalInc = 0;
+    for (var ei = 0; ei < CATEGORIES.length; ei++) totalExp += expSums[CATEGORIES[ei].id] || 0;
+    for (var ii = 0; ii < CATEGORIES_INCOME.length; ii++) totalInc += incSums[CATEGORIES_INCOME[ii].id] || 0;
+
+    var items = [];
+
+    for (var c1 = 0; c1 < CATEGORIES.length; c1++) {
+        var cat1 = CATEGORIES[c1];
+        var sum1 = expSums[cat1.id] || 0;
+        var pct1 = totalExp > 0 ? (sum1 / totalExp) * 100 : 0;
+        items.push({
+            icon: cat1.icon,
+            name: cat1.name,
+            color: cat1.color,
+            amount: sum1,
+            pct: pct1,
+            type: 'expense',
+            hasData: sum1 > 0
+        });
+    }
+
+    for (var c2 = 0; c2 < CATEGORIES_INCOME.length; c2++) {
+        var cat2 = CATEGORIES_INCOME[c2];
+        var sum2 = incSums[cat2.id] || 0;
+        var pct2 = totalInc > 0 ? (sum2 / totalInc) * 100 : 0;
+        items.push({
+            icon: cat2.icon,
+            name: cat2.name,
+            color: cat2.color,
+            amount: sum2,
+            pct: pct2,
+            type: 'income',
+            hasData: sum2 > 0
+        });
+    }
+
+    items.sort(function (a, b) {
+        return Math.abs(b.amount) - Math.abs(a.amount);
+    });
+
+    var maxAmount = 0;
+    for (var mi = 0; mi < items.length; mi++) {
+        if (items[mi].amount > maxAmount) maxAmount = items[mi].amount;
+    }
+    if (maxAmount === 0) maxAmount = 1;
+
+    var candlesHtml = '';
+    for (var ci = 0; ci < items.length; ci++) {
+        var it = items[ci];
+        var heightPx = it.hasData ? Math.max(4, Math.round((it.amount / maxAmount) * 160)) : 3;
+        var barClass = it.hasData ? it.type : 'empty';
+        var pctStr = it.hasData ? (it.pct < 1 ? '<1%' : Math.round(it.pct) + '%') : '0%';
+        var amountStr = it.hasData ? fmtShort(it.amount) : '';
+
+        candlesHtml +=
+            '<div class="candle">' +
+                '<div class="candle-amount">' + amountStr + '</div>' +
+                '<div class="candle-bar ' + barClass + '" style="height:' + heightPx + 'px"></div>' +
+                '<div class="candle-icon">' + it.icon + '</div>' +
+                '<div class="candle-pct">' + pctStr + '</div>' +
+            '</div>';
+    }
+
+    return '<div class="card">' +
+        '<div class="card-title" style="margin-bottom:12px">Анализ периода</div>' +
+        '<div class="period-header">' +
+            '<div class="period-range">' +
+                '<span class="pr-label">Период</span>' +
+                fromStr + ' — ' + toStr +
+            '</div>' +
+            '<button type="button" class="period-edit-btn" data-action="period-open">Изменить</button>' +
+        '</div>' +
+        '<div class="candles-wrap">' +
+            '<div class="candles-row">' + candlesHtml + '</div>' +
+        '</div>' +
+        '<div class="period-legend">' +
+            '<span class="pl-item"><span class="pl-dot income"></span>Доходы</span>' +
+            '<span class="pl-item"><span class="pl-dot expense"></span>Расходы</span>' +
+            '<span class="pl-item"><span class="pl-dot empty"></span>Нет данных</span>' +
+        '</div>' +
+    '</div>';
 }
 
 function renderSettings(c) {
@@ -2658,6 +2847,8 @@ var ACTIONS = {
     },
 
     'tf': function (el) { setTimeframe(el.getAttribute('data-tf')); },
+    'period-open':  function () { openPeriodPicker(); },
+    'period-apply': function () { applyPeriod(); },
 
     'add-debt':  function ()   { showAddDebt(); },
     'edit-debt': function (el) { editDebt(el.getAttribute('data-id')); },

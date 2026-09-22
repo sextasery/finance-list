@@ -1118,3 +1118,138 @@ input[type="file"] { display: none; }
 .period-legend .pl-dot.expense { background: #ff4757; }
 .period-legend .pl-dot.income  { background: #00d26a; }
 .period-legend .pl-dot.empty   { background: rgba(119,140,163,0.5); }
+
+/* =====================================================
+   АНАЛИЗ ПЕРИОДА — свечи
+   ===================================================== */
+.period-block {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+.period-empty {
+    text-align: center;
+    padding: 24px 0;
+}
+.period-empty-btn {
+    background: var(--blue);
+    color: #000;
+    border: none;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: bold;
+    font-family: inherit;
+    cursor: pointer;
+    min-height: var(--min-touch);
+}
+.period-empty-btn:active { opacity: 0.85; }
+
+.period-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.period-range {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+.period-range .pr-label {
+    font-size: 10px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    display: block;
+    margin-bottom: 4px;
+    font-weight: normal;
+}
+.period-edit-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--blue);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    min-height: 40px;
+    white-space: nowrap;
+}
+.period-edit-btn:active { background: rgba(0,210,255,0.08); }
+
+.candles-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+}
+.candles-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    min-height: 220px;
+    padding: 8px 4px 4px;
+}
+.candle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    width: 52px;
+}
+.candle-amount {
+    font-size: 10px;
+    color: var(--text);
+    font-weight: 600;
+    white-space: nowrap;
+    margin-bottom: 6px;
+    text-align: center;
+}
+.candle-bar {
+    width: 34px;
+    border-radius: 6px 6px 0 0;
+    min-height: 3px;
+    transition: height 0.3s;
+}
+.candle-bar.expense { background: linear-gradient(180deg, #ff6b7a 0%, #ff4757 100%); }
+.candle-bar.income  { background: linear-gradient(180deg, #4ade80 0%, #00d26a 100%); }
+.candle-bar.empty   { background: rgba(119,140,163,0.3); height: 3px !important; }
+.candle-icon {
+    font-size: 22px;
+    margin-top: 8px;
+    line-height: 1;
+}
+.candle-pct {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+.period-legend {
+    display: flex;
+    gap: 14px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    font-size: 11px;
+    color: var(--dim);
+}
+.period-legend .pl-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.period-legend .pl-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+.period-legend .pl-dot.expense { background: #ff4757; }
+.period-legend .pl-dot.income  { background: #00d26a; }
+.period-legend .pl-dot.empty   { background: rgba(119,140,163,0.5); }
