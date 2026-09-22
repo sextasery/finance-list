@@ -2604,3 +2604,222 @@ function resetAll() {
         { danger: true, okLabel: 'Продолжить' }
     );
 }
+var ACTIONS = {
+    'op':     function (el) { doOp(Number(el.getAttribute('data-sign'))); },
+    'filter': function (el) { setHistoryFilter(el.getAttribute('data-filter')); },
+
+    'cat-pick':   function (el) { pickCategory(el.getAttribute('data-id')); },
+    'cat-cancel': function ()   { cancelCategoryPicker(); },
+
+    'open-cat-filter':  function () { openCategoryFilter(); },
+    'cat-filter-apply': function () { applyCategoryFilter(); },
+    'cat-filter-reset': function () { resetCategoryFilter(); },
+
+    'clear-history-search': function () {
+        historySearch = '';
+        historyViewCount = 50;
+        renderBalance(document.getElementById('mainContent'));
+    },
+
+    'dp-select': function (el) {
+        var prefix = el.getAttribute('data-prefix');
+        var kind   = el.getAttribute('data-kind');
+        var value  = el.getAttribute('data-value');
+        datePickerSelect(prefix, kind, value);
+    },
+
+    'history-start-select':  function (el) { startSelectionMode(el.getAttribute('data-id')); },
+    'history-toggle-select': function (el) { toggleSelect(el.getAttribute('data-id')); },
+    'exit-selection':        function ()   { exitSelectionMode(); },
+
+    'bulk-edit-category':  function ()   { bulkEditCategory(); },
+    'bulk-edit-date':      function ()   { bulkEditDate(); },
+    'bulk-edit-name':      function ()   { bulkEditName(); },
+    'bulk-delete':         function ()   { bulkDelete(); },
+    'bulk-apply-category': function (el) { bulkApplyCategory(el.getAttribute('data-id'), el.getAttribute('data-type')); },
+    'bulk-apply-date':     function ()   { bulkApplyDate(); },
+    'bulk-apply-name':     function ()   { bulkApplyName(); },
+    'bulk-apply-delete':   function ()   { bulkApplyDelete(); },
+
+    'edit-cat-pick': function (el) { editPickCategory(el.getAttribute('data-id')); },
+
+    'history-edit':        function (el) { showEditHistoryItem(el.getAttribute('data-id')); },
+    'save-edit-history':   function (el) { saveEditedHistory(el.getAttribute('data-id')); },
+    'delete-edit-history': function (el) { deleteFromEdit(el.getAttribute('data-id')); },
+
+    'history-del': function (el) {
+        showDeleteHistoryItem(el.getAttribute('data-id'), { refund: false, restore: false });
+    },
+    'history-confirm-del': function (el) {
+        var id = el.getAttribute('data-id');
+        var refund  = el.getAttribute('data-refund')  === '1';
+        var restore = el.getAttribute('data-restore') === '1';
+        deleteHistoryItem(id, refund, restore);
+    },
+
+    'tf': function (el) { setTimeframe(el.getAttribute('data-tf')); },
+
+    'add-debt':  function ()   { showAddDebt(); },
+    'edit-debt': function (el) { editDebt(el.getAttribute('data-id')); },
+    'save-debt': function (el) { var id = el.getAttribute('data-id'); saveDebt(id || null); },
+    'pay-debt':  function (el) { showPayDebt(el.getAttribute('data-id')); },
+    'del-debt':  function (el) { delDebt(el.getAttribute('data-id')); },
+
+    'add-plan':  function ()   { showAddPlan(); },
+    'edit-plan': function (el) { editPlan(el.getAttribute('data-id')); },
+    'save-plan': function (el) { var id = el.getAttribute('data-id'); savePlan(id || null); },
+    'move-plan': function (el) { movePlan(el.getAttribute('data-id'), Number(el.getAttribute('data-dir'))); },
+    'fund-plan': function (el) { showFundPlan(el.getAttribute('data-id')); },
+    'save-fund': function (el) { fundPlan(el.getAttribute('data-id')); },
+    'del-plan':  function (el) { delPlan(el.getAttribute('data-id')); },
+
+    'export':      function () { exportData(); },
+    'import':      function () { var i = document.getElementById('importFile'); if (i) i.click(); },
+    'reset':       function () { resetAll(); },
+    'close-modal': function () { hideModal(); },
+
+    'confirm-ok':     function () { handleConfirmOk(); },
+    'confirm-cancel': function () { handleConfirmCancel(); },
+
+    'debt-quick': function (el) { debtQuickFill(Number(el.getAttribute('data-amount'))); },
+    'debt-pay-confirm': function (el) {
+        var id = el.getAttribute('data-id');
+        var input = document.getElementById('debtPayAmount');
+        var amt = input ? input.value : '';
+        hideModal();
+        payDebt(id, amt);
+    }
+};
+
+function handleClick(e) {
+    var t = e.target;
+    if (!t || typeof t.closest !== 'function') return;
+    var el = t.closest('[data-action]');
+    if (!el) return;
+    var action = el.getAttribute('data-action');
+    var fn = ACTIONS[action];
+    if (fn) fn(el);
+}
+
+function handleModalChange(e) {
+    var t = e.target;
+    if (!t) return;
+    if (t.id === 'cbRefund')      { handleRefundToggle(!!t.checked); return; }
+    if (t.id === 'cbRestoreDebt') { handleRestoreToggle(!!t.checked); return; }
+}
+
+function handleMainContentClick(e) {
+    var t = e.target;
+    if (!t) return;
+
+    if (t.id === 'chartCanvas') {
+        handleChartTap(e, t);
+        return;
+    }
+
+    if (typeof t.closest !== 'function') return;
+    var el = t.closest('[data-action]');
+    if (!el) return;
+
+    var action = el.getAttribute('data-action');
+
+    if (action === 'history-edit' && shouldBlockEditClick()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+
+    if (selectionMode && (action === 'history-edit' || action === 'history-toggle-select')) {
+        var id = el.getAttribute('data-id');
+        if (id) toggleSelect(id);
+        return;
+    }
+
+    var fn = ACTIONS[action];
+    if (fn) fn(el);
+}
+
+function bindEvents() {
+    document.getElementById('navTabs').addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t || typeof t.closest !== 'function') return;
+        var btn = t.closest('.tab-btn');
+        if (btn) switchTab(btn.getAttribute('data-tab'));
+    });
+
+    document.getElementById('filtersBar').addEventListener('click', handleClick);
+
+    var contentEl = document.getElementById('mainContent');
+    contentEl.addEventListener('click', handleMainContentClick);
+    contentEl.addEventListener('scroll', handleContentScroll, { passive: true });
+
+    document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target && e.target.id === 'modalOverlay') {
+            _pendingOp = null;
+            resetDatePickerState('debt');
+            resetDatePickerState('edit');
+            resetDatePickerState('bulk');
+            hideModal();
+            return;
+        }
+        handleClick(e);
+    });
+
+    document.getElementById('modalOverlay').addEventListener('change', handleModalChange);
+
+    document.body.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'importFile') importData();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            if (modalVisible) {
+                _pendingOp = null;
+                resetDatePickerState('debt');
+                resetDatePickerState('edit');
+                resetDatePickerState('bulk');
+                hideModal();
+            } else if (selectionMode) {
+                exitSelectionMode();
+            } else {
+                hideChartTooltip();
+            }
+        }
+    });
+
+    window.addEventListener('resize', function () {
+        if (currentTab === 'analytics') {
+            var canvas = document.getElementById('chartCanvas');
+            if (canvas && chartSlotsCache && chartSlotsCache.length > 0) {
+                drawChart(canvas, chartSlotsCache, chartTfCache);
+            }
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t) return;
+        if (t.id === 'chartCanvas') return;
+        if (t.closest && t.closest('.chart-tooltip')) return;
+        hideChartTooltip();
+    });
+}
+
+function init() {
+    try {
+        loadState();
+        renderHeader();
+        bindEvents();
+        switchTab('balance');
+    } catch (e) {
+        var screen = document.getElementById('errScreen');
+        screen.textContent = 'INIT ERROR:\n' + (e && e.stack ? e.stack : String(e));
+        screen.style.display = 'block';
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
