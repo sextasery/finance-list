@@ -1,8 +1,5 @@
 'use strict';
 
-/* =========================================================================
-   ГЛОБАЛЬНЫЙ ПЕРЕХВАТ ОШИБОК
-   ========================================================================= */
 (function installErrorScreen() {
     var screen = document.getElementById('errScreen');
     var shown = false;
@@ -23,9 +20,6 @@
     });
 })();
 
-/* =========================================================================
-   КОНСТАНТЫ
-   ========================================================================= */
 var STORAGE_KEY        = 'fin_shield_v8';
 var HISTORY_LIMIT      = 5000;
 var HISTORY_VIEW_LIMIT = 50;
@@ -77,9 +71,7 @@ var TIMEFRAMES = [
 var MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
 var MONTHS_FULL  = ['Январь','Февраль','Март','Апрель','Май','Июнь',
                     'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-/* =========================================================================
-   УТИЛИТЫ
-   ========================================================================= */
+
 var ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 function esc(s) {
     if (s === null || s === undefined) return '';
@@ -117,17 +109,10 @@ function parseAmount(raw) {
     return (isFinite(n) && n > 0) ? n : null;
 }
 
-/* =========================================================================
-   ДАТЫ
-   ========================================================================= */
 function dateToParts(iso) {
     var d = new Date(iso);
     if (isNaN(d.getTime())) d = new Date();
-    return {
-        day: d.getDate(),
-        month: d.getMonth() + 1,
-        year: d.getFullYear()
-    };
+    return { day: d.getDate(), month: d.getMonth() + 1, year: d.getFullYear() };
 }
 
 function partsToIso(day, month, year, sourceIso) {
@@ -167,18 +152,6 @@ function formatDate(iso) {
     catch (_) { return d.toDateString(); }
 }
 
-/* Короткая дата: 21.09 */
-function formatDateShort(iso) {
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    var dd = d.getDate();
-    var mm = d.getMonth() + 1;
-    return (dd < 10 ? '0' + dd : dd) + '.' + (mm < 10 ? '0' + mm : mm);
-}
-
-/* =========================================================================
-   КАТЕГОРИИ
-   ========================================================================= */
 function getCategory(catId) {
     for (var i = 0; i < CATEGORIES.length; i++) {
         if (CATEGORIES[i].id === catId) return CATEGORIES[i];
@@ -203,13 +176,11 @@ function getCategoriesByType(type) {
 
 function parseDebtReturn(desc) {
     if (typeof desc !== 'string') return null;
-
     if (desc.indexOf(DEBT_FULL_PREFIX) === 0) {
         var fullName = desc.slice(DEBT_FULL_PREFIX.length);
         if (!fullName) return null;
         return { kind: 'full', to: fullName };
     }
-
     if (desc.indexOf(DEBT_PARTIAL_PREFIX) === 0) {
         var rest = desc.slice(DEBT_PARTIAL_PREFIX.length);
         var parenIdx = rest.indexOf(DEBT_PARTIAL_MARKER);
@@ -217,12 +188,9 @@ function parseDebtReturn(desc) {
         if (!partName) return null;
         return { kind: 'partial', to: partName };
     }
-
     return null;
 }
-/* =========================================================================
-   СОСТОЯНИЕ
-   ========================================================================= */
+
 function emptyState() {
     return {
         version: STATE_VERSION,
@@ -230,9 +198,7 @@ function emptyState() {
         debts: [],
         plans: [],
         history: [],
-        tf: 'D1',
-        periodFrom: null,
-        periodTo: null
+        tf: 'D1'
     };
 }
 
@@ -243,13 +209,9 @@ var historySearch = '';
 var historyCatFilter = [];
 var historyViewCount = 50;
 
-/* Режим массового выделения */
 var selectionMode = false;
 var selectedIds = [];
 
-/* =========================================================================
-   PERSISTENCE
-   ========================================================================= */
 var storageAvailable = true;
 try {
     var _t = '__fs_test__';
@@ -265,14 +227,10 @@ function loadState() {
         var raw = window.localStorage.getItem(STORAGE_KEY);
         if (!raw) {
             var old = window.localStorage.getItem('fin_shield_v7');
-            if (old) {
-                raw = old;
-                console.log('[FinanceList] migrated from v7 storage');
-            }
+            if (old) raw = old;
         }
         if (!raw) return;
-        var parsed = JSON.parse(raw);
-        state = migrate(parsed);
+        state = migrate(JSON.parse(raw));
     } catch (e) {
         console.error('[FinanceList] load error:', e);
         state = emptyState();
@@ -287,8 +245,6 @@ function migrate(raw) {
     s.plans   = Array.isArray(raw.plans)   ? raw.plans.filter(isValidPlan)      : [];
     s.history = Array.isArray(raw.history) ? raw.history.filter(isValidHistory) : [];
     s.tf      = isValidTf(raw.tf) ? raw.tf : 'D1';
-    s.periodFrom = (typeof raw.periodFrom === 'string') ? raw.periodFrom : null;
-    s.periodTo   = (typeof raw.periodTo   === 'string') ? raw.periodTo   : null;
 
     for (var i = 0; i < s.history.length; i++) {
         var h = s.history[i];
@@ -308,19 +264,19 @@ function isValidTf(id) {
 }
 
 function isValidDebt(d) {
-    return d && typeof d.to === 'string'
-        && typeof d.amount === 'number' && isFinite(d.amount)
-        && d.id != null;
+    return d && typeof d.to === 'string' && typeof d.amount === 'number'
+        && isFinite(d.amount) && d.id != null;
 }
+
 function isValidPlan(p) {
-    return p && typeof p.name === 'string'
-        && typeof p.target === 'number' && isFinite(p.target)
-        && typeof p.current === 'number' && isFinite(p.current)
-        && p.id != null;
+    return p && typeof p.name === 'string' && typeof p.target === 'number'
+        && isFinite(p.target) && typeof p.current === 'number'
+        && isFinite(p.current) && p.id != null;
 }
+
 function isValidHistory(h) {
-    return h && typeof h.date === 'string'
-        && typeof h.amount === 'number' && isFinite(h.amount);
+    return h && typeof h.date === 'string' && typeof h.amount === 'number'
+        && isFinite(h.amount);
 }
 
 function saveState() {
@@ -337,9 +293,6 @@ function saveState() {
     renderHeader();
 }
 
-/* =========================================================================
-   ХЕДЕР
-   ========================================================================= */
 function renderHeader() {
     document.getElementById('totalBalance').textContent = fmt(state.balance);
 
@@ -352,9 +305,6 @@ function renderHeader() {
     document.getElementById('totalPlans').textContent = fmt(planSum);
 }
 
-/* =========================================================================
-   TABS
-   ========================================================================= */
 function switchTab(tab) {
     currentTab = tab;
 
@@ -385,9 +335,6 @@ function switchTab(tab) {
     hideChartTooltip();
 }
 
-/* =========================================================================
-   FILTERS BAR
-   ========================================================================= */
 function renderFiltersBar() {
     var bar = document.getElementById('filtersBar');
     if (!bar) return;
@@ -415,10 +362,6 @@ function setHistoryFilter(f) {
     renderBalance(document.getElementById('mainContent'));
 }
 
-/* =========================================================================
-   ФИЛЬТРАЦИЯ И СОРТИРОВКА ИСТОРИИ
-   Сортировка: от новых к старым (по дате и времени).
-   ========================================================================= */
 function getFilteredHistory() {
     var filtered = state.history;
 
@@ -453,9 +396,6 @@ function getFilteredHistory() {
     return filtered;
 }
 
-/* =========================================================================
-   ОТРИСОВКА ОДНОЙ ЗАПИСИ ИСТОРИИ
-   ========================================================================= */
 function renderHistoryItem(h) {
     var isPos = h.amount > 0;
     var color = isPos ? 'var(--green)' : 'var(--red)';
@@ -506,9 +446,6 @@ function renderHistoryItem(h) {
         '</div>' +
     '</div>';
 }
-/* =========================================================================
-   TAB: BALANCE
-   ========================================================================= */
 function renderBalance(c) {
     var formHtml =
         '<div class="card">' +
@@ -600,9 +537,6 @@ function renderBalance(c) {
     attachLongPressHandlers();
 }
 
-/* =========================================================================
-   ПОИСК
-   ========================================================================= */
 var _searchTimer = null;
 function handleHistorySearch(e) {
     historySearch = e.target.value;
@@ -624,9 +558,6 @@ function handleHistorySearch(e) {
     }, 200);
 }
 
-/* =========================================================================
-   ПАГИНАЦИЯ
-   ========================================================================= */
 function handleContentScroll() {
     if (currentTab !== 'balance') return;
     var el = document.getElementById('mainContent');
@@ -663,9 +594,6 @@ function handleContentScroll() {
     attachLongPressHandlers();
 }
 
-/* =========================================================================
-   ФИЛЬТР ПО КАТЕГОРИЯМ
-   ========================================================================= */
 function openCategoryFilter() {
     var html = '<h3>Фильтр по категориям</h3>' +
         '<p style="font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.4;">' +
@@ -723,9 +651,6 @@ function resetCategoryFilter() {
     for (var i = 0; i < checkboxes.length; i++) checkboxes[i].checked = false;
 }
 
-/* =========================================================================
-   РЕЖИМ ВЫДЕЛЕНИЯ
-   ========================================================================= */
 function startSelectionMode(id) {
     if (selectionMode) return;
     selectionMode = true;
@@ -746,7 +671,6 @@ function exitSelectionMode() {
     renderBalance(document.getElementById('mainContent'));
 }
 
-/* Long-press — навешиваем вручную */
 var _longPressTimer = null;
 var _longPressFired = false;
 
@@ -790,9 +714,7 @@ function shouldBlockEditClick() {
     }
     return false;
 }
-/* =========================================================================
-   ВЫБОР ДАТЫ — сетка кнопок
-   ========================================================================= */
+
 var _datePickerState = {};
 
 function ensureDatePickerState(prefix, iso) {
@@ -910,9 +832,6 @@ function resetDatePickerState(prefix) {
     delete _datePickerState[prefix];
 }
 
-/* =========================================================================
-   МАССОВЫЕ ДЕЙСТВИЯ
-   ========================================================================= */
 var _bulkState = {};
 
 function bulkEditCategory() {
@@ -1027,6 +946,7 @@ function bulkApplyDate() {
 function bulkEditName() {
     if (selectedIds.length === 0) return;
 
+    
     showModal(
         '<h3>Сменить название</h3>' +
         '<p style="font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.4;">' +
@@ -1112,9 +1032,7 @@ function bulkApplyDelete() {
     hideModal();
     exitSelectionMode();
 }
-/* =========================================================================
-   ОПЕРАЦИЯ С ОСТАТКОМ
-   ========================================================================= */
+
 function doOp(sign) {
     var amtInput  = document.getElementById('opAmount');
     var descInput = document.getElementById('opDesc');
@@ -1165,9 +1083,6 @@ function commitOp(sign, amt, desc, categoryId, delta) {
     renderBalance(document.getElementById('mainContent'));
 }
 
-/* =========================================================================
-   МОДАЛКА ВЫБОРА КАТЕГОРИИ
-   ========================================================================= */
 var _pendingOp = null;
 
 function showCategoryPicker(amt, desc, opType, preselectId) {
@@ -1218,9 +1133,6 @@ function cancelCategoryPicker() {
     if (amtInput) { try { amtInput.focus(); } catch (_) {} }
 }
 
-/* =========================================================================
-   TAB: DEBTS
-   ========================================================================= */
 function renderDebts(c) {
     var html =
         '<div class="card">' +
@@ -1296,12 +1208,7 @@ function saveDebt(id) {
         existing.amount = amt;
         existing.createdAt = newIso;
     } else {
-        state.debts.push({
-            id: uid(),
-            to: to,
-            amount: amt,
-            createdAt: newIso
-        });
+        state.debts.push({ id: uid(), to: to, amount: amt, createdAt: newIso });
     }
 
     resetDatePickerState('debt');
@@ -1368,10 +1275,6 @@ function delDebt(id) {
         { danger: true, okLabel: 'Удалить' }
     );
 }
-
-/* =========================================================================
-   TAB: PLANS
-   ========================================================================= */
 function renderPlans(c) {
     var html =
         '<div class="card">' +
@@ -1566,9 +1469,7 @@ function delPlan(id) {
         { danger: true, okLabel: 'Удалить' }
     );
 }
-/* =========================================================================
-   РЕДАКТИРОВАНИЕ ОПЕРАЦИИ ИЗ ИСТОРИИ
-   ========================================================================= */
+
 var _editState = {
     id: null,
     catId: null,
@@ -1725,9 +1626,6 @@ function deleteFromEdit(id) {
     }, 50);
 }
 
-/* =========================================================================
-   МОДАЛКА УДАЛЕНИЯ ИСТОРИИ
-   ========================================================================= */
 var _delHistState = { id: null, refund: false, restore: false, bulkMode: false };
 
 function showDeleteHistoryItem(id, opts) {
@@ -1823,7 +1721,6 @@ function showDeleteHistoryItem(id, opts) {
 
 function handleRefundToggle(checked) {
     if (_delHistState.bulkMode) return;
-
     var id = _delHistState.id;
     if (!id) return;
     var restore = _delHistState.restore;
@@ -1833,7 +1730,6 @@ function handleRefundToggle(checked) {
 
 function handleRestoreToggle(checked) {
     if (_delHistState.bulkMode) return;
-
     var id = _delHistState.id;
     if (!id) return;
     if (!_delHistState.refund) return;
@@ -1883,9 +1779,6 @@ function deleteHistoryItem(id, refund, restore) {
     else if (currentTab === 'settings')  renderSettings(c);
 }
 
-/* =========================================================================
-   MODAL — базовая инфраструктура (без автофокуса)
-   ========================================================================= */
 var modalVisible = false;
 var _confirmCallback = null;
 
@@ -1922,6 +1815,7 @@ function showModal(html) {
     modalVisible = true;
 }
 
+
 function hideModal() {
     var overlay = document.getElementById('modalOverlay');
     var content = document.getElementById('modalContent');
@@ -1935,9 +1829,6 @@ function hideModal() {
     _delHistState = { id: null, refund: false, restore: false, bulkMode: false };
 }
 
-/* =========================================================================
-   CONFIRM MODAL
-   ========================================================================= */
 function showConfirm(title, text, onOk, opts) {
     opts = opts || {};
     var okLabel = opts.okLabel || 'Подтвердить';
@@ -1973,9 +1864,6 @@ function handleConfirmCancel() {
     hideModal();
 }
 
-/* =========================================================================
-   PAY DEBT MODAL
-   ========================================================================= */
 function showPayDebt(id) {
     var d = null;
     for (var i = 0; i < state.debts.length; i++) {
@@ -2016,9 +1904,6 @@ function debtQuickFill(amount) {
         input.value = String(amount);
     }
 }
-/* =========================================================================
-   ANALYTICS — группировка по таймфреймам
-   ========================================================================= */
 function buildChartData(tfId) {
     var tf = null;
     for (var i = 0; i < TIMEFRAMES.length; i++) {
@@ -2055,11 +1940,7 @@ function buildChartData(tfId) {
         var cur = new Date(startDate);
         while (cur <= todayEnd) {
             var dayEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59, 999);
-            slots.push({
-                start: new Date(cur), end: dayEnd,
-                label: formatDayLabel(cur),
-                income: 0, expense: 0, ops: 0
-            });
+            slots.push({ start: new Date(cur), end: dayEnd, label: formatDayLabel(cur), income: 0, expense: 0, ops: 0 });
             cur.setDate(cur.getDate() + 1);
         }
     } else if (tf.unit === 'week') {
@@ -2068,46 +1949,30 @@ function buildChartData(tfId) {
             var wEnd = new Date(w);
             wEnd.setDate(wEnd.getDate() + 6);
             wEnd.setHours(23, 59, 59, 999);
-            slots.push({
-                start: new Date(w), end: wEnd,
-                label: formatWeekLabel(w),
-                income: 0, expense: 0, ops: 0
-            });
-            var next = new Date(w);
-            next.setDate(next.getDate() + 7);
-            w = next;
+            slots.push({ start: new Date(w), end: wEnd, label: formatWeekLabel(w), income: 0, expense: 0, ops: 0 });
+            var nextW = new Date(w);
+            nextW.setDate(nextW.getDate() + 7);
+            w = nextW;
         }
     } else if (tf.unit === 'month') {
         var m = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
         while (m <= now) {
             var mEnd = new Date(m.getFullYear(), m.getMonth() + 1, 0, 23, 59, 59, 999);
-            slots.push({
-                start: new Date(m), end: mEnd,
-                label: formatMonthLabel(m),
-                income: 0, expense: 0, ops: 0
-            });
+            slots.push({ start: new Date(m), end: mEnd, label: formatMonthLabel(m), income: 0, expense: 0, ops: 0 });
             m = new Date(m.getFullYear(), m.getMonth() + 1, 1);
         }
     } else if (tf.unit === 'q') {
         var q = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
         while (q <= now) {
             var qEnd = new Date(q.getFullYear(), q.getMonth() + 3, 0, 23, 59, 59, 999);
-            slots.push({
-                start: new Date(q), end: qEnd,
-                label: formatQuarterLabel(q),
-                income: 0, expense: 0, ops: 0
-            });
+            slots.push({ start: new Date(q), end: qEnd, label: formatQuarterLabel(q), income: 0, expense: 0, ops: 0 });
             q = new Date(q.getFullYear(), q.getMonth() + 3, 1);
         }
     } else {
         var y = new Date(startDate.getFullYear(), 0, 1);
         while (y <= now) {
             var yEnd = new Date(y.getFullYear(), 11, 31, 23, 59, 59, 999);
-            slots.push({
-                start: new Date(y), end: yEnd,
-                label: String(y.getFullYear()),
-                income: 0, expense: 0, ops: 0
-            });
+            slots.push({ start: new Date(y), end: yEnd, label: String(y.getFullYear()), income: 0, expense: 0, ops: 0 });
             y = new Date(y.getFullYear() + 1, 0, 1);
         }
     }
@@ -2176,9 +2041,6 @@ function formatPeriodFull(slot, tfId) {
     return 'Год ' + slot.start.getFullYear();
 }
 
-/* =========================================================================
-   ANALYTICS — Canvas
-   ========================================================================= */
 function initCanvasHiDPI(canvas, cssW, cssH) {
     var dpr = window.devicePixelRatio || 1;
     canvas.width  = Math.floor(cssW * dpr);
@@ -2258,12 +2120,12 @@ function drawChart(canvas, slots, tfId) {
 
     for (var g = 0; g <= gridLines; g++) {
         var val = minBal + (yRange * g / gridLines);
-        var y = yForBalance(val);
+        var yy = yForBalance(val);
         ctx.beginPath();
-        ctx.moveTo(PAD_L, y);
-        ctx.lineTo(PAD_L + chartW, y);
+        ctx.moveTo(PAD_L, yy);
+        ctx.lineTo(PAD_L + chartW, yy);
         ctx.stroke();
-        ctx.fillText(fmtShort(val), PAD_L - 6, y);
+        ctx.fillText(fmtShort(val), PAD_L - 6, yy);
     }
 
     ctx.textAlign = 'center';
@@ -2353,9 +2215,6 @@ function drawChart(canvas, slots, tfId) {
     ctx.stroke();
 }
 
-/* =========================================================================
-   TAB: ANALYTICS
-   ========================================================================= */
 var chartSlotsCache = [];
 var chartTfCache = 'D1';
 
@@ -2417,14 +2276,15 @@ function renderAnalytics(c) {
         }
     }
 
-    var totalExpTt = 0;
-var totalIncTt = 0;
-for (var e1 = 0; e1 < CATEGORIES.length; e1++) {
-    totalExpTt += expSums[CATEGORIES[e1].id] || 0;
-}
-for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) {
-    totalIncTt += incSums[CATEGORIES_INCOME[i1].id] || 0;
-}
+    var totalExpSum = 0;
+    var totalIncSum = 0;
+    for (var e1 = 0; e1 < CATEGORIES.length; e1++) {
+        totalExpSum += expSums[CATEGORIES[e1].id] || 0;
+    }
+    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) {
+        totalIncSum += incSums[CATEGORIES_INCOME[i1].id] || 0;
+    }
+
     var expRowsHtml = '';
     for (var ei = 0; ei < CATEGORIES.length; ei++) {
         var catE2 = CATEGORIES[ei];
@@ -2501,9 +2361,6 @@ function setTimeframe(tfId) {
     renderAnalytics(document.getElementById('mainContent'));
 }
 
-/* =========================================================================
-   TOOLTIP
-   ========================================================================= */
 function handleChartTap(e, canvas) {
     if (!chartSlotsCache || chartSlotsCache.length === 0) return;
 
@@ -2558,8 +2415,14 @@ function showChartTooltip(slot, tapX, tapY) {
         }
     }
 
-    for (var e1 = 0; e1 < CATEGORIES.length; e1++) totalExpTt += expSums[CATEGORIES[e1].id] || 0;
-    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) totalIncTt += incSums[CATEGORIES_INCOME[i1].id] || 0;
+    var totalExpTt = 0;
+    var totalIncTt = 0;
+    for (var e1 = 0; e1 < CATEGORIES.length; e1++) {
+        totalExpTt += expSums[CATEGORIES[e1].id] || 0;
+    }
+    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) {
+        totalIncTt += incSums[CATEGORIES_INCOME[i1].id] || 0;
+    }
 
     var catHtml = '';
 
@@ -2576,6 +2439,7 @@ function showChartTooltip(slot, tapX, tapY) {
         }
     }
 
+    
     if (totalExpTt > 0) {
         catHtml += '<div class="tt-sep"></div>';
         for (var ci2 = 0; ci2 < CATEGORIES.length; ci2++) {
@@ -2627,9 +2491,7 @@ function hideChartTooltip() {
         tt.innerHTML = '';
     }
 }
-/* =========================================================================
-   TAB: SETTINGS
-   ========================================================================= */
+
 function renderSettings(c) {
     c.innerHTML =
         '<div class="card">' +
@@ -2741,233 +2603,4 @@ function resetAll() {
         },
         { danger: true, okLabel: 'Продолжить' }
     );
-}
-
-/* =========================================================================
-   ДЕЛЕГИРОВАНИЕ СОБЫТИЙ
-   ========================================================================= */
-var ACTIONS = {
-    'op':     function (el) { doOp(Number(el.getAttribute('data-sign'))); },
-    'filter': function (el) { setHistoryFilter(el.getAttribute('data-filter')); },
-
-    'cat-pick':   function (el) { pickCategory(el.getAttribute('data-id')); },
-    'cat-cancel': function ()   { cancelCategoryPicker(); },
-
-    'open-cat-filter':  function () { openCategoryFilter(); },
-    'cat-filter-apply': function () { applyCategoryFilter(); },
-    'cat-filter-reset': function () { resetCategoryFilter(); },
-
-    'clear-history-search': function () {
-        historySearch = '';
-        historyViewCount = 50;
-        renderBalance(document.getElementById('mainContent'));
-    },
-
-    'dp-select': function (el) {
-        var prefix = el.getAttribute('data-prefix');
-        var kind   = el.getAttribute('data-kind');
-        var value  = el.getAttribute('data-value');
-        datePickerSelect(prefix, kind, value);
-    },
-
-    'history-start-select':  function (el) { startSelectionMode(el.getAttribute('data-id')); },
-    'history-toggle-select': function (el) { toggleSelect(el.getAttribute('data-id')); },
-    'exit-selection':        function ()   { exitSelectionMode(); },
-
-    'bulk-edit-category':  function ()   { bulkEditCategory(); },
-    'bulk-edit-date':      function ()   { bulkEditDate(); },
-    'bulk-edit-name':      function ()   { bulkEditName(); },
-    'bulk-delete':         function ()   { bulkDelete(); },
-    'bulk-apply-category': function (el) { bulkApplyCategory(el.getAttribute('data-id'), el.getAttribute('data-type')); },
-    'bulk-apply-date':     function ()   { bulkApplyDate(); },
-    'bulk-apply-name':     function ()   { bulkApplyName(); },
-    'bulk-apply-delete':   function ()   { bulkApplyDelete(); },
-
-    'edit-cat-pick': function (el) { editPickCategory(el.getAttribute('data-id')); },
-
-    'history-edit':        function (el) { showEditHistoryItem(el.getAttribute('data-id')); },
-    'save-edit-history':   function (el) { saveEditedHistory(el.getAttribute('data-id')); },
-    'delete-edit-history': function (el) { deleteFromEdit(el.getAttribute('data-id')); },
-
-    'history-del': function (el) {
-        showDeleteHistoryItem(el.getAttribute('data-id'), { refund: false, restore: false });
-    },
-    'history-confirm-del': function (el) {
-        var id = el.getAttribute('data-id');
-        var refund  = el.getAttribute('data-refund')  === '1';
-        var restore = el.getAttribute('data-restore') === '1';
-        deleteHistoryItem(id, refund, restore);
-    },
-
-    'tf': function (el) { setTimeframe(el.getAttribute('data-tf')); },
-
-    'add-debt':  function ()   { showAddDebt(); },
-    'edit-debt': function (el) { editDebt(el.getAttribute('data-id')); },
-    'save-debt': function (el) { var id = el.getAttribute('data-id'); saveDebt(id || null); },
-    'pay-debt':  function (el) { showPayDebt(el.getAttribute('data-id')); },
-    'del-debt':  function (el) { delDebt(el.getAttribute('data-id')); },
-
-    'add-plan':  function ()   { showAddPlan(); },
-    'edit-plan': function (el) { editPlan(el.getAttribute('data-id')); },
-    'save-plan': function (el) { var id = el.getAttribute('data-id'); savePlan(id || null); },
-    'move-plan': function (el) { movePlan(el.getAttribute('data-id'), Number(el.getAttribute('data-dir'))); },
-    'fund-plan': function (el) { showFundPlan(el.getAttribute('data-id')); },
-    'save-fund': function (el) { fundPlan(el.getAttribute('data-id')); },
-    'del-plan':  function (el) { delPlan(el.getAttribute('data-id')); },
-
-    'export':      function () { exportData(); },
-    'import':      function () { var i = document.getElementById('importFile'); if (i) i.click(); },
-    'reset':       function () { resetAll(); },
-    'close-modal': function () { hideModal(); },
-
-    'confirm-ok':     function () { handleConfirmOk(); },
-    'confirm-cancel': function () { handleConfirmCancel(); },
-
-    'debt-quick': function (el) { debtQuickFill(Number(el.getAttribute('data-amount'))); },
-    'debt-pay-confirm': function (el) {
-        var id = el.getAttribute('data-id');
-        var input = document.getElementById('debtPayAmount');
-        var amt = input ? input.value : '';
-        hideModal();
-        payDebt(id, amt);
-    }
-};
-
-function handleClick(e) {
-    var t = e.target;
-    if (!t || typeof t.closest !== 'function') return;
-    var el = t.closest('[data-action]');
-    if (!el) return;
-    var action = el.getAttribute('data-action');
-    var fn = ACTIONS[action];
-    if (fn) fn(el);
-}
-
-function handleModalChange(e) {
-    var t = e.target;
-    if (!t) return;
-    if (t.id === 'cbRefund')      { handleRefundToggle(!!t.checked); return; }
-    if (t.id === 'cbRestoreDebt') { handleRestoreToggle(!!t.checked); return; }
-}
-
-function handleMainContentClick(e) {
-    var t = e.target;
-    if (!t) return;
-
-    if (t.id === 'chartCanvas') {
-        handleChartTap(e, t);
-        return;
-    }
-
-    if (typeof t.closest !== 'function') return;
-    var el = t.closest('[data-action]');
-    if (!el) return;
-
-    var action = el.getAttribute('data-action');
-
-    if (action === 'history-edit' && shouldBlockEditClick()) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-    }
-
-    if (selectionMode && (action === 'history-edit' || action === 'history-toggle-select')) {
-        var id = el.getAttribute('data-id');
-        if (id) toggleSelect(id);
-        return;
-    }
-
-    var fn = ACTIONS[action];
-    if (fn) fn(el);
-}
-
-/* =========================================================================
-   BIND EVENTS
-   ========================================================================= */
-function bindEvents() {
-    document.getElementById('navTabs').addEventListener('click', function (e) {
-        var t = e.target;
-        if (!t || typeof t.closest !== 'function') return;
-        var btn = t.closest('.tab-btn');
-        if (btn) switchTab(btn.getAttribute('data-tab'));
-    });
-
-    document.getElementById('filtersBar').addEventListener('click', handleClick);
-
-    var contentEl = document.getElementById('mainContent');
-    contentEl.addEventListener('click', handleMainContentClick);
-    contentEl.addEventListener('scroll', handleContentScroll, { passive: true });
-
-    document.getElementById('modalOverlay').addEventListener('click', function (e) {
-        if (e.target && e.target.id === 'modalOverlay') {
-            _pendingOp = null;
-            resetDatePickerState('debt');
-            resetDatePickerState('edit');
-            resetDatePickerState('bulk');
-            hideModal();
-            return;
-        }
-        handleClick(e);
-    });
-
-    document.getElementById('modalOverlay').addEventListener('change', handleModalChange);
-
-    document.body.addEventListener('change', function (e) {
-        if (e.target && e.target.id === 'importFile') importData();
-    });
-
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            if (modalVisible) {
-                _pendingOp = null;
-                resetDatePickerState('debt');
-                resetDatePickerState('edit');
-                resetDatePickerState('bulk');
-                hideModal();
-            } else if (selectionMode) {
-                exitSelectionMode();
-            } else {
-                hideChartTooltip();
-            }
-        }
-    });
-
-    window.addEventListener('resize', function () {
-        if (currentTab === 'analytics') {
-            var canvas = document.getElementById('chartCanvas');
-            if (canvas && chartSlotsCache && chartSlotsCache.length > 0) {
-                drawChart(canvas, chartSlotsCache, chartTfCache);
-            }
-        }
-    });
-
-    document.addEventListener('click', function (e) {
-        var t = e.target;
-        if (!t) return;
-        if (t.id === 'chartCanvas') return;
-        if (t.closest && t.closest('.chart-tooltip')) return;
-        hideChartTooltip();
-    });
-}
-
-/* =========================================================================
-   INIT
-   ========================================================================= */
-function init() {
-    try {
-        loadState();
-        renderHeader();
-        bindEvents();
-        switchTab('balance');
-    } catch (e) {
-        var screen = document.getElementById('errScreen');
-        screen.textContent = 'INIT ERROR:\n' + (e && e.stack ? e.stack : String(e));
-        screen.style.display = 'block';
-    }
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
 }
