@@ -2417,6 +2417,7 @@ function renderAnalytics(c) {
         }
     }
 
+    var totalExpTt = 0, totalIncTt = 0;
     var totalExpSum = 0;
     for (var e1 = 0; e1 < CATEGORIES.length; e1++) totalExpSum += expSums[CATEGORIES[e1].id] || 0;
     var totalIncSum = 0;
