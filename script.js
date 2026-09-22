@@ -2661,6 +2661,11 @@ function buildPeriodBlockHtml() {
             '</div>';
     }
 
+    var net = totalInc - totalExp;
+    var netClass = net >= 0 ? 'pos' : 'neg';
+    var netSign = net >= 0 ? '+' : '';
+    var netColor = net >= 0 ? 'var(--green)' : 'var(--red)';
+
     return '<div class="card">' +
         '<div class="card-title" style="margin-bottom:12px">Анализ периода</div>' +
         '<div class="period-header">' +
@@ -2677,6 +2682,20 @@ function buildPeriodBlockHtml() {
             '<span class="pl-item"><span class="pl-dot income"></span>Доходы</span>' +
             '<span class="pl-item"><span class="pl-dot expense"></span>Расходы</span>' +
             '<span class="pl-item"><span class="pl-dot empty"></span>Нет данных</span>' +
+        '</div>' +
+        '<div class="period-totals">' +
+            '<div class="pt-row">' +
+                '<span class="pt-label">Всего доходов</span>' +
+                '<span class="pt-value" style="color:var(--green)">' + (totalInc > 0 ? '+' : '') + fmt(totalInc) + '</span>' +
+            '</div>' +
+            '<div class="pt-row">' +
+                '<span class="pt-label">Всего расходов</span>' +
+                '<span class="pt-value" style="color:var(--red)">' + (totalExp > 0 ? '−' : '') + fmt(totalExp) + '</span>' +
+            '</div>' +
+            '<div class="pt-row pt-row-total">' +
+                '<span class="pt-label">Итог за период</span>' +
+                '<span class="pt-value" style="color:' + netColor + '">' + netSign + fmt(net) + '</span>' +
+            '</div>' +
         '</div>' +
     '</div>';
 }

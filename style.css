@@ -1253,3 +1253,38 @@ input[type="file"] { display: none; }
 .period-legend .pl-dot.expense { background: #ff4757; }
 .period-legend .pl-dot.income  { background: #00d26a; }
 .period-legend .pl-dot.empty   { background: rgba(119,140,163,0.5); }
+
+/* Итоги периода */
+.period-totals {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.period-totals .pt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+.period-totals .pt-label {
+    color: var(--dim);
+}
+.period-totals .pt-value {
+    font-weight: bold;
+    font-size: 15px;
+}
+.period-totals .pt-row-total {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255,255,255,0.1);
+}
+.period-totals .pt-row-total .pt-label {
+    color: var(--text);
+    font-weight: 600;
+}
+.period-totals .pt-row-total .pt-value {
+    font-size: 17px;
+}
