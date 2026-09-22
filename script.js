@@ -2607,7 +2607,8 @@ function buildPeriodBlockHtml() {
     for (var c1 = 0; c1 < CATEGORIES.length; c1++) {
         var cat1 = CATEGORIES[c1];
         var sum1 = expSums[cat1.id] || 0;
-        var pct1 = totalExp > 0 ? (sum1 / totalExp) * 100 : 0;
+        var totalAll = totalExp + totalInc;
+        var pct1 = totalAll > 0 ? (sum1 / totalAll) * 100 : 0;
         items.push({
             icon: cat1.icon,
             name: cat1.name,
@@ -2622,7 +2623,7 @@ function buildPeriodBlockHtml() {
     for (var c2 = 0; c2 < CATEGORIES_INCOME.length; c2++) {
         var cat2 = CATEGORIES_INCOME[c2];
         var sum2 = incSums[cat2.id] || 0;
-        var pct2 = totalInc > 0 ? (sum2 / totalInc) * 100 : 0;
+        var pct2 = totalAll > 0 ? (sum2 / totalAll) * 100 : 0;
         items.push({
             icon: cat2.icon,
             name: cat2.name,
