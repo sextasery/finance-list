@@ -309,8 +309,9 @@ header {
     position: sticky;
     top: 6px;
     z-index: 50;
-    background: var(--blue);
-    color: #000;
+    background: rgba(0,210,255,0.08);
+    border: 1px solid rgba(0,210,255,0.35);
+    color: var(--text);
     padding: 10px 12px;
     border-radius: 10px;
     display: flex;
@@ -325,11 +326,12 @@ header {
     font-size: 14px;
     flex: 1 1 auto;
     white-space: nowrap;
+    color: var(--blue);
 }
 .selection-bar button {
-    background: rgba(0,0,0,0.15);
-    border: none;
-    color: #000;
+    background: rgba(0,210,255,0.12);
+    border: 1px solid rgba(0,210,255,0.3);
+    color: var(--blue);
     padding: 8px 10px;
     border-radius: 6px;
     font-size: 12px;
@@ -342,9 +344,13 @@ header {
     align-items: center;
     gap: 4px;
 }
-.selection-bar button:active { background: rgba(0,0,0,0.3); }
-.selection-bar button.danger { background: rgba(255,71,87,0.9); color: #fff; }
-
+.selection-bar button:active { background: rgba(0,210,255,0.22); }
+.selection-bar button.danger {
+    background: rgba(255,71,87,0.12);
+    border-color: rgba(255,71,87,0.35);
+    color: var(--red);
+}
+.selection-bar button.danger:active { background: rgba(255,71,87,0.22); }
 /* =====================================================
    БЕЙДЖИ КАТЕГОРИЙ
    ===================================================== */
@@ -1290,3 +1296,11 @@ input[type="file"] { display: none; }
 }
 
 .cat-badge.drugs { background: rgba(197,108,240,0.2); color: #c56cf0; }
+
+
+.history-card-title {
+    padding: 2px 4px;
+    margin-bottom: 14px;
+    line-height: 1.4;
+    letter-spacing: 0.2px;
+}

@@ -458,6 +458,7 @@ function renderHistoryItem(h) {
     '</div>';
 }
 function renderBalance(c) {
+    var savedScroll = c.scrollTop;
     var formHtml =
         '<div class="card">' +
             '<div class="card-title" style="margin-bottom:10px">Операция с остатком</div>' +
@@ -497,7 +498,7 @@ var toolsHtml =
     '</div>';
 
     var selectionBarHtml = '';
-    if (selectionMode) {
+if (selectionMode && selectedIds.length > 0) {
         selectionBarHtml =
             '<div class="selection-bar">' +
                 '<span class="sb-count">Выбрано: ' + selectedIds.length + '</span>' +
@@ -509,7 +510,7 @@ var toolsHtml =
             '</div>';
     }
 
-    var historyHtml = '<div class="card"><div class="card-title">История операций</div>' + toolsHtml + selectionBarHtml;
+    var historyHtml = '<div class="card"><div class="card-title history-card-title">История операций</div>' + toolsHtml + selectionBarHtml;
 
     if (totalFiltered === 0) {
         var emptyMsg = (historySearch.trim() || filterActive || hasDateFilter)
@@ -548,6 +549,7 @@ var toolsHtml =
     '</div>';
 
     c.innerHTML = formHtml + historyHtml;
+    c.scrollTop = savedScroll;
 
     var searchEl = document.getElementById('historySearch');
     if (searchEl) searchEl.addEventListener('input', handleHistorySearch);
@@ -736,6 +738,12 @@ function toggleSelect(id) {
     var idx = selectedIds.indexOf(id);
     if (idx === -1) selectedIds.push(id);
     else selectedIds.splice(idx, 1);
+
+    if (selectedIds.length === 0) {
+        selectionMode = false;
+        selectedIds = [];
+    }
+
     renderBalance(document.getElementById('mainContent'));
 }
 
@@ -1875,7 +1883,7 @@ function showModal(html) {
     overlay.style.padding = '16px';
     overlay.style.paddingBottom = '260px';
     overlay.style.touchAction = 'pan-y';
-    overlay.scrollTop = 0;
+    overlay.scrollTop = modalVisible ? overlay.scrollTop : 0;
 
     content.style.position = 'relative';
     content.style.paddingTop = '52px';
