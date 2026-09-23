@@ -47,6 +47,7 @@ var CATEGORIES = [
     { id: 'weed',      name: 'Трава',     icon: '🌿', cssClass: 'weed',      color: '#20bf6b' },
     { id: 'gaba',      name: 'Габа',      icon: '💊', cssClass: 'gaba',      color: '#b8a55e' },
     { id: 'synth',     name: 'Синтетика', icon: '❄️', cssClass: 'synth',     color: '#5b8dff' },
+    { id: 'drugs',     name: 'Наркотики', icon: '💉', cssClass: 'drugs',     color: '#c56cf0' },
     { id: 'tariffs',   name: 'Тарифы',    icon: '📱', cssClass: 'tariffs',   color: '#a55eea' },
     { id: 'other',     name: 'Прочее',    icon: '💸', cssClass: 'other',     color: '#778ca3' }
 ];
@@ -208,6 +209,8 @@ var historyFilter = 'all';
 var historySearch = '';
 var historyCatFilter = [];
 var historyViewCount = 50;
+var historyDateFrom = null;
+var historyDateTo = null;
 
 var selectionMode = false;
 var selectedIds = [];
@@ -378,6 +381,14 @@ function getFilteredHistory() {
             return historyCatFilter.indexOf(h.categoryId) !== -1;
         });
     }
+    if (historyDateFrom && historyDateTo) {
+    var fromTs = new Date(historyDateFrom).getTime();
+    var toTs = new Date(historyDateTo).getTime();
+    filtered = filtered.filter(function (h) {
+        var ts = new Date(h.date).getTime();
+        return ts >= fromTs && ts <= toTs;
+    });
+  }
 
     var query = historySearch.trim().toLowerCase();
     if (query) {
@@ -463,20 +474,27 @@ function renderBalance(c) {
     var visibleCount = Math.min(historyViewCount, totalFiltered);
 
     var filterActive = historyCatFilter.length > 0;
-    var hasSearchValue = historySearch.length > 0;
-    var toolsHtml =
-        '<div class="history-tools">' +
-            '<div class="history-search-wrap' + (hasSearchValue ? ' has-value' : '') + '">' +
-                '<input type="text" class="history-search" id="historySearch" ' +
-                    'placeholder="Поиск по истории" autocomplete="off" value="' + esc(historySearch) + '">' +
-                '<button type="button" class="history-search-clear" ' +
-                    'data-action="clear-history-search" aria-label="Очистить">✕</button>' +
-            '</div>' +
-            '<button type="button" class="history-cat-btn ' + (filterActive ? 'active' : '') + '" ' +
-                'data-action="open-cat-filter">' +
-                '🏷 ' + (filterActive ? 'Категории: ' + historyCatFilter.length : 'Категории') +
-            '</button>' +
-        '</div>';
+var hasSearchValue = historySearch.length > 0;
+var hasDateFilter = !!(historyDateFrom && historyDateTo);
+var toolsHtml =
+    '<div class="history-tools">' +
+        '<div class="history-search-wrap' + (hasSearchValue ? ' has-value' : '') + '">' +
+            '<input type="text" class="history-search" id="historySearch" ' +
+                'placeholder="Поиск по истории" autocomplete="off" value="' + esc(historySearch) + '">' +
+            '<button type="button" class="history-search-clear" ' +
+                'data-action="clear-history-search" aria-label="Очистить">✕</button>' +
+        '</div>' +
+    '</div>' +
+    '<div class="history-tools" style="margin-top:-4px;">' +
+        '<button type="button" class="history-cat-btn ' + (filterActive ? 'active' : '') + '" ' +
+            'data-action="open-cat-filter">' +
+            '🏷 ' + (filterActive ? 'Категории: ' + historyCatFilter.length : 'Категории') +
+        '</button>' +
+        '<button type="button" class="history-cat-btn ' + (hasDateFilter ? 'active' : '') + '" ' +
+            'data-action="hist-date-open">' +
+            '📅 ' + (hasDateFilter ? 'Даты выбраны' : 'Даты') +
+        '</button>' +
+    '</div>';
 
     var selectionBarHtml = '';
     if (selectionMode) {
@@ -494,9 +512,9 @@ function renderBalance(c) {
     var historyHtml = '<div class="card"><div class="card-title">История операций</div>' + toolsHtml + selectionBarHtml;
 
     if (totalFiltered === 0) {
-        var emptyMsg = (historySearch.trim() || filterActive)
-            ? 'Ничего не найдено'
-            : 'Нет записей<br>Начни с пополнения баланса';
+        var emptyMsg = (historySearch.trim() || filterActive || hasDateFilter)
+    ? 'Ничего не найдено'
+    : 'Нет записей<br>Начни с пополнения баланса';
         historyHtml += '<div class="empty-state">' + emptyMsg + '</div>';
     } else {
         historyHtml += '<div id="historyList">';
@@ -642,6 +660,62 @@ function applyCategoryFilter() {
     }
     historyCatFilter = newFilter;
     historyViewCount = 50;
+    hideModal();
+    renderBalance(document.getElementById('mainContent'));
+}
+
+function openHistoryDatePicker() {
+    var fromIso = historyDateFrom || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    var toIso   = historyDateTo   || new Date().toISOString();
+
+    delete _datePickerState.histFrom;
+    delete _datePickerState.histTo;
+    ensureDatePickerState('histFrom', fromIso);
+    ensureDatePickerState('histTo', toIso);
+
+    showModal(
+        '<h3>Фильтр по датам</h3>' +
+        '<div class="field-label">От</div>' +
+        buildDatePickerHtml('histFrom', fromIso) +
+        '<div class="field-label" style="margin-top:14px;">До</div>' +
+        buildDatePickerHtml('histTo', toIso) +
+        '<div class="btn-row" style="margin-top:14px;">' +
+            '<button type="button" class="btn-full btn-secondary" data-action="hist-date-clear">Сбросить</button>' +
+            '<button type="button" class="btn-full btn-primary" data-action="hist-date-apply">Применить</button>' +
+        '</div>'
+    );
+}
+
+function applyHistoryDate() {
+    var fromSt = _datePickerState.histFrom;
+    var toSt   = _datePickerState.histTo;
+    if (!fromSt || !toSt) return;
+
+    var fromDate = new Date(fromSt.year, fromSt.month - 1, fromSt.day, 0, 0, 0);
+    var toDate   = new Date(toSt.year, toSt.month - 1, toSt.day, 23, 59, 59);
+
+    if (fromDate > toDate) {
+        alert('Дата «От» позже, чем «До». Поменяй местами.');
+        return;
+    }
+
+    historyDateFrom = fromDate.toISOString();
+    historyDateTo = toDate.toISOString();
+    historyViewCount = 50;
+
+    delete _datePickerState.histFrom;
+    delete _datePickerState.histTo;
+
+    hideModal();
+    renderBalance(document.getElementById('mainContent'));
+}
+
+function clearHistoryDate() {
+    historyDateFrom = null;
+    historyDateTo = null;
+    historyViewCount = 50;
+    delete _datePickerState.histFrom;
+    delete _datePickerState.histTo;
     hideModal();
     renderBalance(document.getElementById('mainContent'));
 }
@@ -1828,6 +1902,8 @@ function hideModal() {
     _delHistState = { id: null, refund: false, restore: false, bulkMode: false };
     delete _datePickerState.periodFrom;
     delete _datePickerState.periodTo;
+    delete _datePickerState.histFrom;
+    delete _datePickerState.histTo;
 }
 
 function showConfirm(title, text, onOk, opts) {
@@ -2821,7 +2897,9 @@ var ACTIONS = {
     'cat-cancel': function ()   { cancelCategoryPicker(); },
 
     'open-cat-filter':  function () { openCategoryFilter(); },
-    'cat-filter-apply': function () { applyCategoryFilter(); },
+    'hist-date-open':  function () { openHistoryDatePicker(); },
+    'hist-date-apply': function () { applyHistoryDate(); },
+    'hist-date-clear': function () { clearHistoryDate(); },
     'cat-filter-reset': function () { resetCategoryFilter(); },
 
     'clear-history-search': function () {

@@ -1288,3 +1288,5 @@ input[type="file"] { display: none; }
 .period-totals .pt-row-total .pt-value {
     font-size: 17px;
 }
+
+.cat-badge.drugs { background: rgba(197,108,240,0.2); color: #c56cf0; }
