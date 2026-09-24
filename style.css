@@ -1340,3 +1340,5 @@ input[type="file"] { display: none; }
     padding-top: 0;
     border-top: none;
 }
+
+.cat-badge.sigi { background: rgba(255,120,60,0.2); color: #ff783c; }
