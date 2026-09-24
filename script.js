@@ -2951,6 +2951,8 @@ var ACTIONS = {
     'cat-cancel': function ()   { cancelCategoryPicker(); },
 
     'open-cat-filter':  function () { openCategoryFilter(); },
+  'cat-filter-apply': function () { applyCategoryFilter(); },
+'cat-filter-reset': function () { resetCategoryFilter(); },
     'hist-date-open':  function () { openHistoryDatePicker(); },
     'hist-date-apply': function () { applyHistoryDate(); },
     'hist-date-clear': function () { clearHistoryDate(); },
