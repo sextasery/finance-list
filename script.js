@@ -43,6 +43,7 @@ var CATEGORIES = [
     { id: 'things',    name: 'Вещи',      icon: '👕', cssClass: 'things',    color: '#ff6b9d' },
     { id: 'housing',   name: 'Жильё',     icon: '🏠', cssClass: 'housing',   color: '#26de81' },
     { id: 'transport', name: 'Проезд',    icon: '🚌', cssClass: 'transport', color: '#45aaf2' },
+    { id: 'pharmacy',  name: 'Аптека',    icon: '💊', cssClass: 'pharmacy',  color: '#00d26a' },
     { id: 'alcohol',   name: 'Алкоголь',  icon: '🍷', cssClass: 'alcohol',   color: '#f7b731' },
     { id: 'sigi',      name: 'Сиги',      icon: '🚬', cssClass: 'sigi',      color: '#ff783c' },
     { id: 'weed',      name: 'Трава',     icon: '🌿', cssClass: 'weed',      color: '#20bf6b' },

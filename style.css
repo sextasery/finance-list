@@ -1342,3 +1342,5 @@ input[type="file"] { display: none; }
 }
 
 .cat-badge.sigi { background: rgba(255,120,60,0.2); color: #ff783c; }
+
+.cat-badge.pharmacy { background: rgba(0,210,106,0.2); color: #00d26a; }
