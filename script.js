@@ -152,6 +152,34 @@ function formatDate(iso) {
     try { return d.toLocaleDateString('ru-RU'); }
     catch (_) { return d.toDateString(); }
 }
+function formatTimeFromIso(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) d = new Date();
+    var hh = d.getHours();
+    var mm = d.getMinutes();
+    return (hh < 10 ? '0' + hh : hh) + ':' + (mm < 10 ? '0' + mm : mm);
+}
+
+function parseTimeStr(str) {
+    if (!str) return null;
+    var s = String(str).trim();
+    var m = s.match(/^(\d{1,2})[:.\s]?(\d{0,2})$/);
+    if (!m) return null;
+    var hh = parseInt(m[1], 10);
+    var mm = m[2] ? parseInt(m[2], 10) : 0;
+    if (hh < 0 || hh > 23) return null;
+    if (mm < 0 || mm > 59) return null;
+    return { hh: hh, mm: mm };
+}
+
+function applyTimeToIso(iso, timeStr) {
+    var tp = parseTimeStr(timeStr);
+    if (!tp) return iso;
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) d = new Date();
+    d.setHours(tp.hh, tp.mm, 0, 0);
+    return d.toISOString();
+}
 
 function getCategory(catId) {
     for (var i = 0; i < CATEGORIES.length; i++) {
@@ -464,6 +492,7 @@ function renderBalance(c) {
             '<div class="card-title" style="margin-bottom:10px">Операция с остатком</div>' +
             '<input type="text" id="opAmount" placeholder="Сумма" inputmode="decimal" autocomplete="off">' +
             '<input type="text" id="opDesc" placeholder="Название" autocomplete="off">' +
+            '<input type="text" id="opTime" placeholder="Время (ЧЧ:ММ)" autocomplete="off" value="' + formatTimeFromIso(new Date().toISOString()) + '">' +
             '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">' +
                 '<button type="button" class="btn-full btn-primary" data-action="op" data-sign="1">+ Пополнить</button>' +
                 '<button type="button" class="btn-full btn-danger"  data-action="op" data-sign="-1">− Списать</button>' +
@@ -1117,6 +1146,7 @@ function bulkApplyDelete() {
 function doOp(sign) {
     var amtInput  = document.getElementById('opAmount');
     var descInput = document.getElementById('opDesc');
+    var timeInput = document.getElementById('opTime');
     if (!amtInput || !descInput) return;
 
     var amt = parseAmount(amtInput.value);
@@ -1126,31 +1156,35 @@ function doOp(sign) {
     }
 
     var desc = descInput.value.trim();
+    var timeStr = timeInput ? timeInput.value.trim() : '';
     var opType = (sign > 0) ? TYPE.INCOME : TYPE.EXPENSE;
-    showCategoryPicker(amt, desc, opType, null);
+    showCategoryPicker(amt, desc, opType, null, timeStr);
 }
 
-function applyOp(sign, amt, desc, categoryId) {
+function applyOp(sign, amt, desc, categoryId, timeStr) {
     var delta = amt * sign;
 
     if (sign < 0 && state.balance + delta < 0) {
         showConfirm(
             'Баланс станет отрицательным',
             'После операции остаток: ' + fmt(state.balance + delta) + '. Продолжить?',
-            function () { commitOp(sign, amt, desc, categoryId, delta); },
+            function () { commitOp(sign, amt, desc, categoryId, delta, timeStr); },
             { danger: true, okLabel: 'Всё равно списать' }
         );
         return;
     }
-    commitOp(sign, amt, desc, categoryId, delta);
+    commitOp(sign, amt, desc, categoryId, delta, timeStr);
 }
 
-function commitOp(sign, amt, desc, categoryId, delta) {
+function commitOp(sign, amt, desc, categoryId, delta, timeStr) {
     state.balance += delta;
+
+    var isoNow = new Date().toISOString();
+    if (timeStr) isoNow = applyTimeToIso(isoNow, timeStr);
 
     var record = {
         id: uid(),
-        date: new Date().toISOString(),
+        date: isoNow,
         type: sign > 0 ? TYPE.INCOME : TYPE.EXPENSE,
         desc: desc,
         amount: delta
@@ -1166,9 +1200,8 @@ function commitOp(sign, amt, desc, categoryId, delta) {
 
 var _pendingOp = null;
 
-function showCategoryPicker(amt, desc, opType, preselectId) {
-    _pendingOp = { amt: amt, desc: desc, opType: opType, catId: preselectId || null };
-
+function showCategoryPicker(amt, desc, opType, preselectId, timeStr) {
+    _pendingOp = { amt: amt, desc: desc, opType: opType, catId: preselectId || null, timeStr: timeStr || '' };
     var list = getCategoriesByType(opType);
     var isIncome = (opType === TYPE.INCOME);
     var title = isIncome ? 'Откуда пришло?' : 'Куда потратил?';
@@ -1556,7 +1589,8 @@ var _editState = {
     catId: null,
     amount: '',
     desc: '',
-    dateIso: null
+    dateIso: null,
+    timeStr: ''
 };
 
 function showEditHistoryItem(id) {
@@ -1567,9 +1601,10 @@ function showEditHistoryItem(id) {
     if (!item) return;
 
     _editState.id = id;
-    _editState.amount = String(Math.abs(item.amount));
-    _editState.desc = item.desc || '';
-    _editState.dateIso = item.date;
+_editState.amount = String(Math.abs(item.amount));
+_editState.desc = item.desc || '';
+_editState.dateIso = item.date;
+_editState.timeStr = formatTimeFromIso(item.date);
 
     if (item.type === TYPE.EXPENSE) {
         _editState.catId = item.categoryId || DEFAULT_CATEGORY_ID;
@@ -1625,7 +1660,9 @@ function renderEditHistoryModal(item) {
         '<input type="text" id="editDesc" autocomplete="off" ' +
             'value="' + esc(_editState.desc) + '">' +
         '<div class="field-label">Дата</div>' +
-        dateHtml +
+dateHtml +
+'<div class="field-label">Время</div>' +
+'<input type="text" id="editTime" placeholder="ЧЧ:ММ" autocomplete="off" value="' + esc(_editState.timeStr) + '">' + +
         catHtml +
         '<button type="button" class="btn-full btn-primary" ' +
             'data-action="save-edit-history" data-id="' + esc(item.id) + '">Сохранить</button>' +
@@ -1637,27 +1674,26 @@ function renderEditHistoryModal(item) {
 }
 
 function captureEditFields() {
-    var amtEl = document.getElementById('editAmount');
+    var amtEl  = document.getElementById('editAmount');
     var descEl = document.getElementById('editDesc');
+    var timeEl = document.getElementById('editTime');
     if (amtEl)  _editState.amount = amtEl.value;
     if (descEl) _editState.desc   = descEl.value;
+    if (timeEl) _editState.timeStr = timeEl.value;
     _editState.dateIso = readDatePicker('edit', _editState.dateIso);
 }
 
-function editPickCategory(catId) {
-    if (!_editState.id) return;
-
-    var item = null;
-    for (var i = 0; i < state.history.length; i++) {
-        if (state.history[i].id === _editState.id) { item = state.history[i]; break; }
-    }
-    if (!item) return;
-
-    captureEditFields();
-    _editState.catId = catId;
-    renderEditHistoryModal(item);
+function pickCategory(catId) {
+    if (!_pendingOp) return;
+    var amt = _pendingOp.amt;
+    var desc = _pendingOp.desc;
+    var opType = _pendingOp.opType;
+    var timeStr = _pendingOp.timeStr || '';
+    _pendingOp = null;
+    hideModal();
+    var sign = (opType === TYPE.INCOME) ? 1 : -1;
+    applyOp(sign, amt, desc, catId, timeStr);
 }
-
 function saveEditedHistory(id) {
     var item = null;
     for (var i = 0; i < state.history.length; i++) {
@@ -1681,9 +1717,11 @@ function saveEditedHistory(id) {
     var delta = newAmount - oldAmount;
     state.balance += delta;
 
-    item.amount = newAmount;
-    item.desc = _editState.desc.trim();
-    item.date = _editState.dateIso;
+    var finalIso = applyTimeToIso(_editState.dateIso, _editState.timeStr);
+
+item.amount = newAmount;
+item.desc = _editState.desc.trim();
+item.date = finalIso;
 
     if (item.type === TYPE.EXPENSE) {
         item.categoryId = _editState.catId || DEFAULT_CATEGORY_ID;
