@@ -1304,3 +1304,39 @@ input[type="file"] { display: none; }
     line-height: 1.4;
     letter-spacing: 0.2px;
 }
+
+.item-sub-plan {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 8px;
+    margin-bottom: 6px;
+    padding-left: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.item-sub-plan::before {
+    content: '📅';
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.period-picker-label {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--blue);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 18px 0 10px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+.period-picker-label:first-child {
+    margin-top: 4px;
+    padding-top: 0;
+    border-top: none;
+}

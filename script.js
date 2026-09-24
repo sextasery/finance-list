@@ -706,9 +706,9 @@ function openHistoryDatePicker() {
 
     showModal(
         '<h3>Фильтр по датам</h3>' +
-        '<div class="field-label">От</div>' +
+        '<div class="period-picker-label">От</div>' +
         buildDatePickerHtml('histFrom', fromIso) +
-        '<div class="field-label" style="margin-top:14px;">До</div>' +
+        '<div class="period-picker-label">До</div>' +
         buildDatePickerHtml('histTo', toIso) +
         '<div class="btn-row" style="margin-top:14px;">' +
             '<button type="button" class="btn-full btn-secondary" data-action="hist-date-clear">Сбросить</button>' +
@@ -1416,7 +1416,7 @@ function renderPlans(c) {
                             '</div>' +
                         '</div>' +
                         '<div class="progress-bg"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
-                        '<div class="item-sub">Создано: ' + formatDate(p.createdAt) + '</div>' +
+                        '<div class="item-sub-plan">Создано: ' + formatDate(p.createdAt) + '</div>' +
                         '<div class="item-actions">' +
                             '<button type="button" class="mini-btn move" data-action="move-plan" data-id="' + esc(p.id) + '" data-dir="-1"' +
                                 (isFirst ? ' disabled' : '') + ' aria-label="Выше">▲</button>' +
@@ -1660,9 +1660,10 @@ function renderEditHistoryModal(item) {
         '<input type="text" id="editDesc" autocomplete="off" ' +
             'value="' + esc(_editState.desc) + '">' +
         '<div class="field-label">Дата</div>' +
-dateHtml +
-'<div class="field-label">Время</div>' +
-'<input type="text" id="editTime" placeholder="ЧЧ:ММ" autocomplete="off" value="' + esc(_editState.timeStr) + '">' + +
+        dateHtml +
+        '<div class="field-label">Время</div>' +
+        '<input type="text" id="editTime" placeholder="ЧЧ:ММ" autocomplete="off" ' +
+            'value="' + esc(_editState.timeStr || '') + '">' +
         catHtml +
         '<button type="button" class="btn-full btn-primary" ' +
             'data-action="save-edit-history" data-id="' + esc(item.id) + '">Сохранить</button>' +
@@ -2625,14 +2626,21 @@ function openPeriodPicker() {
     var fromIso = state.periodFrom || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
     var toIso   = state.periodTo   || new Date().toISOString();
 
-    delete _periodPickerState.from;
-    delete _periodPickerState.to;
+    delete _datePickerState.periodFrom;
+    delete _datePickerState.periodTo;
     ensureDatePickerState('periodFrom', fromIso);
     ensureDatePickerState('periodTo', toIso);
 
-    renderPeriodPickerModal();
+    showModal(
+        '<h3>Выбрать период</h3>' +
+        '<div class="period-picker-label">От</div>' +
+        buildDatePickerHtml('periodFrom', fromIso) +
+        '<div class="period-picker-label">До</div>' +
+        buildDatePickerHtml('periodTo', toIso) +
+        '<button type="button" class="btn-full btn-primary" data-action="period-apply">Применить</button>' +
+        '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>'
+    );
 }
-
 function renderPeriodPickerModal() {
     var fromHtml = buildDatePickerHtml('periodFrom', _datePickerState.periodFrom ? 
         partsToIso(_datePickerState.periodFrom.day, _datePickerState.periodFrom.month, _datePickerState.periodFrom.year, null) : new Date().toISOString());
