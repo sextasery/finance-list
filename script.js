@@ -1685,6 +1685,20 @@ function captureEditFields() {
     _editState.dateIso = readDatePicker('edit', _editState.dateIso);
 }
 
+function editPickCategory(catId) {
+    if (!_editState.id) return;
+
+    var item = null;
+    for (var i = 0; i < state.history.length; i++) {
+        if (state.history[i].id === _editState.id) { item = state.history[i]; break; }
+    }
+    if (!item) return;
+
+    captureEditFields();
+    _editState.catId = catId;
+    renderEditHistoryModal(item);
+}
+
 function pickCategory(catId) {
     if (!_pendingOp) return;
     var amt = _pendingOp.amt;
