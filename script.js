@@ -205,6 +205,121 @@ function getCategoriesByType(type) {
     return (type === TYPE.INCOME) ? CATEGORIES_INCOME : CATEGORIES;
 }
 
+/* =========================================================================
+   БЮДЖЕТЫ — УТИЛИТЫ
+   ========================================================================= */
+function getMonthKey(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var y = d.getFullYear();
+    var m = d.getMonth() + 1;
+    return y + '-' + (m < 10 ? '0' + m : m);
+}
+
+function getCurrentMonthKey() {
+    return getMonthKey(new Date().toISOString());
+}
+
+function formatMonthRu(key) {
+    if (!key) return '';
+    var parts = key.split('-');
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    if (isNaN(y) || isNaN(m) || m < 1 || m > 12) return key;
+    return MONTHS_FULL[m - 1] + ' ' + y;
+}
+
+function getAllMonthsWithBudgets() {
+    var seen = {};
+    for (var i = 0; i < state.budgets.length; i++) {
+        seen[state.budgets[i].month] = true;
+    }
+    var arr = [];
+    for (var k in seen) {
+        if (seen.hasOwnProperty(k)) arr.push(k);
+    }
+    arr.sort();
+    return arr;
+}
+
+function getBudgetForCategory(catId, monthKey) {
+    for (var i = 0; i < state.budgets.length; i++) {
+        var b = state.budgets[i];
+        if (b.categoryId === catId && b.month === monthKey) return b.limit;
+    }
+    return null;
+}
+
+function getSpentForCategory(catId, monthKey) {
+    var total = 0;
+    for (var i = 0; i < state.history.length; i++) {
+        var h = state.history[i];
+        if (getMonthKey(h.date) !== monthKey) continue;
+        if (h.amount >= 0) continue;
+
+        if (h.categoryId === catId) {
+            total += Math.abs(h.amount);
+            continue;
+        }
+
+        if (catId === 'other' && h.type === TYPE.TRANSFER && !h.categoryId) {
+            total += Math.abs(h.amount);
+        }
+    }
+    return total;
+}
+
+function setBudgetLimit(catId, limit, monthKey) {
+    state.budgets = state.budgets.filter(function (b) {
+        return !(b.categoryId === catId && b.month === monthKey);
+    });
+    if (limit > 0) {
+        state.budgets.push({
+            categoryId: catId,
+            limit: limit,
+            month: monthKey
+        });
+    }
+    saveState();
+}
+
+function removeBudget(catId, monthKey) {
+    setBudgetLimit(catId, 0, monthKey);
+}
+
+function getBudgetColor(pct) {
+    if (pct >= 100) return '#ff4757';
+    if (pct >= 80)  return '#ff783c';
+    if (pct >= 50)  return '#f7b731';
+    return '#00d26a';
+}
+
+function ensureBudgetsForCurrentMonth() {
+    var current = getCurrentMonthKey();
+
+    for (var i = 0; i < state.budgets.length; i++) {
+        if (state.budgets[i].month === current) return;
+    }
+
+    var latest = null;
+    for (var j = 0; j < state.budgets.length; j++) {
+        var m = state.budgets[j].month;
+        if (m >= current) continue;
+        if (latest === null || m > latest) latest = m;
+    }
+    if (latest === null) return;
+
+    for (var k = 0; k < state.budgets.length; k++) {
+        if (state.budgets[k].month !== latest) continue;
+        state.budgets.push({
+            categoryId: state.budgets[k].categoryId,
+            limit: state.budgets[k].limit,
+            month: current
+        });
+    }
+    saveState();
+}
+
 function parseDebtReturn(desc) {
     if (typeof desc !== 'string') return null;
     if (desc.indexOf(DEBT_FULL_PREFIX) === 0) {
@@ -229,10 +344,12 @@ function emptyState() {
         debts: [],
         plans: [],
         history: [],
-        tf: 'D1'
+        tf: 'D1',
+        budgets: [],
+        budgetsCollapsed: false,
+        budgetsViewMonth: null
     };
 }
-
 var state = emptyState();
 var currentTab = 'balance';
 var historyFilter = 'all';
@@ -278,6 +395,9 @@ function migrate(raw) {
     s.plans   = Array.isArray(raw.plans)   ? raw.plans.filter(isValidPlan)      : [];
     s.history = Array.isArray(raw.history) ? raw.history.filter(isValidHistory) : [];
     s.tf      = isValidTf(raw.tf) ? raw.tf : 'D1';
+    s.budgets = Array.isArray(raw.budgets) ? raw.budgets.filter(isValidBudget) : [];
+s.budgetsCollapsed = (typeof raw.budgetsCollapsed === 'boolean') ? raw.budgetsCollapsed : false;
+s.budgetsViewMonth = (typeof raw.budgetsViewMonth === 'string') ? raw.budgetsViewMonth : null;
 
     for (var i = 0; i < s.history.length; i++) {
         var h = s.history[i];
@@ -310,6 +430,12 @@ function isValidPlan(p) {
 function isValidHistory(h) {
     return h && typeof h.date === 'string' && typeof h.amount === 'number'
         && isFinite(h.amount);
+}
+
+function isValidBudget(b) {
+    return b && typeof b.categoryId === 'string'
+        && typeof b.limit === 'number' && isFinite(b.limit) && b.limit > 0
+        && typeof b.month === 'string' && /^\d{4}-\d{2}$/.test(b.month);
 }
 
 function saveState() {
@@ -579,8 +705,8 @@ if (selectionMode && selectedIds.length > 0) {
         '</div>' +
     '</div>';
 
-    c.innerHTML = formHtml + historyHtml;
-    c.scrollTop = savedScroll;
+    c.innerHTML = formHtml + buildBudgetsBlockHtml() + historyHtml;
+c.scrollTop = savedScroll;
 
     var searchEl = document.getElementById('historySearch');
     if (searchEl) searchEl.addEventListener('input', handleHistorySearch);
@@ -739,7 +865,7 @@ function applyHistoryDate() {
     delete _datePickerState.histFrom;
     delete _datePickerState.histTo;
 
-    hideModal();
+    dal();
     renderBalance(document.getElementById('mainContent'));
 }
 
@@ -2717,6 +2843,157 @@ function buildPeriodBlockHtml() {
         '</div>';
     }
 
+  
+/* =========================================================================
+   БЮДЖЕТЫ — РЕНДЕР БЛОКА
+   ========================================================================= */
+function buildBudgetsBlockHtml() {
+    var viewMonth = state.budgetsViewMonth || getCurrentMonthKey();
+
+    var budgetsForMonth = state.budgets.filter(function (b) {
+        return b.month === viewMonth;
+    });
+
+    budgetsForMonth.sort(function (a, b) {
+        var idxA = -1, idxB = -1;
+        for (var i = 0; i < CATEGORIES.length; i++) {
+            if (CATEGORIES[i].id === a.categoryId) idxA = i;
+            if (CATEGORIES[i].id === b.categoryId) idxB = i;
+        }
+        return idxA - idxB;
+    });
+
+    var currentKey = getCurrentMonthKey();
+    var canGoForward = viewMonth < currentKey;
+
+    var rowsHtml = '';
+    if (budgetsForMonth.length === 0) {
+        rowsHtml = '<div class="budgets-empty">' +
+            'На этот месяц бюджетов нет<br>' +
+            '<span style="font-size:11px;">Нажми «Добавить бюджет» ниже</span>' +
+        '</div>';
+    } else {
+        for (var i = 0; i < budgetsForMonth.length; i++) {
+            var b = budgetsForMonth[i];
+            var cat = getCategory(b.categoryId);
+            if (!cat) continue;
+
+            var spent = getSpentForCategory(b.categoryId, viewMonth);
+            var pct = b.limit > 0 ? (spent / b.limit) * 100 : 0;
+            var barPct = Math.min(100, pct);
+            var color = getBudgetColor(pct);
+            var over = spent > b.limit;
+            var overAmount = over ? (spent - b.limit) : 0;
+
+            rowsHtml +=
+                '<div class="budget-row">' +
+                    '<div class="budget-row-top">' +
+                        '<span class="budget-row-name">' + cat.icon + ' ' + esc(cat.name) + '</span>' +
+                        '<span class="budget-row-amounts"><b>' + fmt(spent) + '</b> / ' + fmt(b.limit) + '</span>' +
+                    '</div>' +
+                    '<div class="budget-bar-bg">' +
+                        '<div class="budget-bar-fill" style="width:' + barPct + '%;background:' + color + '"></div>' +
+                    '</div>' +
+                    (over ? '<div class="budget-over">Превышение: ' + fmt(overAmount) + '</div>' : '') +
+                '</div>';
+        }
+    }
+
+    var collapseClass = state.budgetsCollapsed ? ' collapsed' : '';
+    var rotateClass = state.budgetsCollapsed ? ' rotated' : '';
+
+    return '<div class="card">' +
+        '<div class="budgets-header">' +
+            '<div class="card-title" style="margin:0;">Бюджеты</div>' +
+            '<button type="button" class="budgets-toggle ' + rotateClass + '" ' +
+                'data-action="budgets-toggle" aria-label="Свернуть">▼</button>' +
+        '</div>' +
+        '<div class="budgets-collapse-wrap' + collapseClass + '">' +
+            '<div class="budgets-month-nav">' +
+                '<button type="button" class="budgets-month-arrow" ' +
+                    'data-action="budgets-month-prev" aria-label="Прошлый месяц">←</button>' +
+                '<div class="budgets-month-label" data-action="budgets-month-open">' +
+                    formatMonthRu(viewMonth) +
+                '</div>' +
+                '<button type="button" class="budgets-month-arrow" ' +
+                    'data-action="budgets-month-next"' + (canGoForward ? '' : ' disabled') +
+                    ' aria-label="Следующий месяц">→</button>' +
+            '</div>' +
+            '<div class="budgets-list">' + rowsHtml + '</div>' +
+            '<button type="button" class="budgets-add-btn" data-action="budgets-edit-open">' +
+                '+ Изменить бюджеты' +
+            '</button>' +
+        '</div>' +
+    '</div>';
+}
+
+/* =========================================================================
+   БЮДЖЕТЫ — НАВИГАЦИЯ
+   ========================================================================= */
+function shiftMonthKey(key, delta) {
+    var parts = key.split('-');
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    if (isNaN(y) || isNaN(m)) return key;
+    m += delta;
+    while (m < 1) { m += 12; y -= 1; }
+    while (m > 12) { m -= 12; y += 1; }
+    return y + '-' + (m < 10 ? '0' + m : m);
+}
+
+function budgetsShiftMonth(delta) {
+    var current = state.budgetsViewMonth || getCurrentMonthKey();
+    var next = shiftMonthKey(current, delta);
+    if (next > getCurrentMonthKey()) return;
+    state.budgetsViewMonth = next;
+    saveState();
+    renderBalance(document.getElementById('mainContent'));
+}
+
+function budgetsToggleCollapse() {
+    state.budgetsCollapsed = !state.budgetsCollapsed;
+    saveState();
+
+    var wrap = document.querySelector('.budgets-collapse-wrap');
+    var btn = document.querySelector('.budgets-toggle');
+    if (wrap) wrap.classList.toggle('collapsed');
+    if (btn) btn.classList.toggle('rotated');
+}
+
+function openBudgetsMonthPicker() {
+    var months = getAllMonthsWithBudgets();
+    var currentKey = getCurrentMonthKey();
+
+    if (months.indexOf(currentKey) === -1) months.push(currentKey);
+    months.sort();
+    months.reverse();
+
+    var viewMonth = state.budgetsViewMonth || currentKey;
+
+    var html = '<h3>Выбрать месяц</h3>' +
+        '<div class="budgets-month-list">';
+    for (var i = 0; i < months.length; i++) {
+        var mk = months[i];
+        var active = (mk === viewMonth) ? ' active' : '';
+        html += '<button type="button" class="budgets-month-item' + active + '" ' +
+            'data-action="budgets-month-set" data-month="' + esc(mk) + '">' +
+            formatMonthRu(mk) +
+        '</button>';
+    }
+    html += '</div>';
+
+    showModal(html);
+}
+
+function budgetsSetMonth(key) {
+    if (!key) return;
+    if (key > getCurrentMonthKey()) return;
+    state.budgetsViewMonth = key;
+    saveState();
+    hideModal();
+    renderBalance(document.getElementById('mainContent'));
+}
+
     var fromDate = new Date(state.periodFrom);
     var toDate = new Date(state.periodTo);
     var fromStr = fromDate.getDate() + ' ' + MONTHS_SHORT[fromDate.getMonth()] + ' ' + fromDate.getFullYear();
@@ -2845,6 +3122,99 @@ function buildPeriodBlockHtml() {
             '</div>' +
         '</div>' +
     '</div>';
+}
+
+
+/* =========================================================================
+   БЮДЖЕТЫ — РЕДАКТИРОВАНИЕ ЛИМИТОВ
+   ========================================================================= */
+function openBudgetsEditModal() {
+    var viewMonth = state.budgetsViewMonth || getCurrentMonthKey();
+    var isCurrentMonth = (viewMonth === getCurrentMonthKey());
+
+    var html = '<h3>Бюджеты на ' + formatMonthRu(viewMonth) + '</h3>';
+
+    if (!isCurrentMonth) {
+        html += '<p style="font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.4;">' +
+            'Редактирование прошлых месяцев. Изменения сохранятся только для этого месяца.' +
+        '</p>';
+    } else {
+        html += '<p style="font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.4;">' +
+            'Оставь поле пустым — бюджета не будет. Число — лимит в рублях.' +
+        '</p>';
+    }
+
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+
+    for (var i = 0; i < CATEGORIES.length; i++) {
+        var cat = CATEGORIES[i];
+        var currentLimit = getBudgetForCategory(cat.id, viewMonth);
+        var value = (currentLimit !== null) ? String(currentLimit) : '';
+
+        html += '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<span style="width:34px;height:34px;border-radius:50%;' +
+                'display:inline-flex;align-items:center;justify-content:center;' +
+                'font-size:18px;background:' + cat.color + '33;flex-shrink:0;">' +
+                cat.icon +
+            '</span>' +
+            '<span style="flex:1;font-size:14px;color:var(--text);min-width:0;' +
+                'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+                esc(cat.name) +
+            '</span>' +
+            '<input type="text" inputmode="decimal" autocomplete="off" ' +
+                'data-budget-input="' + esc(cat.id) + '" ' +
+                'placeholder="0" value="' + esc(value) + '" ' +
+                'style="width:110px;margin:0;padding:10px;font-size:15px;text-align:right;">' +
+        '</div>';
+    }
+
+    html += '</div>';
+
+    html += '<button type="button" class="btn-full btn-primary" ' +
+        'data-action="budgets-save" data-month="' + esc(viewMonth) + '" ' +
+        'style="margin-top:16px;">Сохранить</button>';
+    html += '<button type="button" class="btn-full btn-outline" ' +
+        'data-action="close-modal">Отмена</button>';
+
+    showModal(html);
+}
+
+function saveBudgetsFromModal(monthKey) {
+    if (!monthKey) return;
+
+    var inputs = document.querySelectorAll('[data-budget-input]');
+    if (!inputs || inputs.length === 0) {
+        hideModal();
+        return;
+    }
+
+    for (var i = 0; i < inputs.length; i++) {
+        var inp = inputs[i];
+        var catId = inp.getAttribute('data-budget-input');
+        if (!catId) continue;
+
+        var raw = String(inp.value).replace(/\s/g, '').replace(',', '.').trim();
+        var limit = 0;
+
+        if (raw !== '') {
+            var n = Number(raw);
+            if (!isFinite(n) || n < 0) {
+                alert('Проверь значения бюджетов. Только положительные числа.');
+                return;
+            }
+            limit = n;
+        }
+
+        setBudgetLimit(catId, limit, monthKey);
+    }
+
+    if (state.budgetsViewMonth === null) {
+        state.budgetsViewMonth = monthKey;
+    }
+
+    saveState();
+    hideModal();
+    renderBalance(document.getElementById('mainContent'));
 }
 
 function renderSettings(c) {
@@ -3018,6 +3388,13 @@ var ACTIONS = {
 
     'tf': function (el) { setTimeframe(el.getAttribute('data-tf')); },
     'period-open':  function () { openPeriodPicker(); },
+    'budgets-toggle':       function ()   { budgetsToggleCollapse(); },
+'budgets-month-prev':   function ()   { budgetsShiftMonth(-1); },
+'budgets-month-next':   function ()   { budgetsShiftMonth(1); },
+'budgets-month-open':   function ()   { openBudgetsMonthPicker(); },
+'budgets-month-set':    function (el) { budgetsSetMonth(el.getAttribute('data-month')); },
+  'budgets-edit-open':    function ()   { openBudgetsEditModal(); },
+'budgets-save':         function (el) { saveBudgetsFromModal(el.getAttribute('data-month')); },
     'period-apply': function () { applyPeriod(); },
 
     'add-debt':  function ()   { showAddDebt(); },
@@ -3169,6 +3546,7 @@ function bindEvents() {
 function init() {
     try {
         loadState();
+        ensureBudgetsForCurrentMonth();
         renderHeader();
         bindEvents();
         switchTab('balance');

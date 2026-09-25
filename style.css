@@ -1344,3 +1344,183 @@ input[type="file"] { display: none; }
 .cat-badge.sigi { background: rgba(255,120,60,0.2); color: #ff783c; }
 
 .cat-badge.pharmacy { background: rgba(0,210,106,0.2); color: #00d26a; }
+
+
+/* =====================================================
+   БЮДЖЕТЫ
+   ===================================================== */
+.budgets-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.budgets-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: transform 0.3s;
+}
+.budgets-toggle.rotated { transform: rotate(180deg); }
+
+.budgets-collapse-wrap {
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.3s ease;
+    max-height: 2000px;
+    opacity: 1;
+}
+.budgets-collapse-wrap.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+.budgets-month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.budgets-month-arrow {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+}
+.budgets-month-arrow:active { border-color: var(--blue); color: var(--blue); }
+.budgets-month-arrow:disabled { opacity: 0.25; cursor: not-allowed; }
+
+.budgets-month-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    min-width: 160px;
+    text-align: center;
+    min-height: 36px;
+    line-height: 20px;
+}
+.budgets-month-label:active { border-color: var(--blue); }
+
+.budgets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.budget-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.budget-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+.budget-row-name {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+.budget-row-amounts {
+    font-size: 12px;
+    color: var(--dim);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.budget-row-amounts b { color: var(--text); font-weight: 600; }
+
+.budget-bar-bg {
+    height: 8px;
+    background: #0a0c10;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+.budget-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.35s ease, background 0.35s ease;
+}
+
+.budget-over {
+    font-size: 11px;
+    color: var(--red);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.budgets-empty {
+    text-align: center;
+    color: var(--dim);
+    font-size: 13px;
+    padding: 16px 0;
+    line-height: 1.5;
+}
+.budgets-add-btn {
+    width: 100%;
+    padding: 12px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--dim);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    min-height: var(--min-touch);
+}
+.budgets-add-btn:active { border-color: var(--blue); color: var(--blue); }
+
+.budgets-month-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+.budgets-month-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    padding: 12px 14px;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    min-height: var(--min-touch);
+}
+.budgets-month-item.active { border-color: var(--blue); color: var(--blue); font-weight: 700; }
+.budgets-month-item:active { background: rgba(0,210,255,0.06); }
