@@ -2231,4 +2231,1334 @@ function debtQuickFill(amount) {
     if (input) {
         input.value = String(amount);
     }
+}function buildChartData(tfId) {
+    var tf = null;
+    for (var i = 0; i < TIMEFRAMES.length; i++) {
+        if (TIMEFRAMES[i].id === tfId) { tf = TIMEFRAMES[i]; break; }
+    }
+    if (!tf) tf = TIMEFRAMES[0];
+
+    var now = new Date();
+    var todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    var startDate;
+    if (tf.unit === 'day') {
+        startDate = new Date(todayEnd);
+        startDate.setDate(startDate.getDate() - tf.days + 1);
+        startDate.setHours(0, 0, 0, 0);
+    } else if (tf.unit === 'week') {
+        startDate = new Date(todayEnd);
+        var dow = startDate.getDay();
+        var diffToMon = (dow + 6) % 7;
+        startDate.setDate(startDate.getDate() - diffToMon - 11 * 7);
+        startDate.setHours(0, 0, 0, 0);
+    } else if (tf.unit === 'month') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0);
+    } else if (tf.unit === 'q') {
+        var currentQ = Math.floor(now.getMonth() / 3);
+        startDate = new Date(now.getFullYear(), (currentQ - 7) * 3, 1, 0, 0, 0);
+    } else {
+        startDate = new Date(now.getFullYear() - 4, 0, 1, 0, 0, 0);
+    }
+
+    var slots = [];
+
+    if (tf.unit === 'day') {
+        var cur = new Date(startDate);
+        while (cur <= todayEnd) {
+            var dayEnd = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate(), 23, 59, 59, 999);
+            slots.push({ start: new Date(cur), end: dayEnd, label: formatDayLabel(cur), income: 0, expense: 0, ops: 0 });
+            cur.setDate(cur.getDate() + 1);
+        }
+    } else if (tf.unit === 'week') {
+        var w = new Date(startDate);
+        while (w <= todayEnd) {
+            var wEnd = new Date(w);
+            wEnd.setDate(wEnd.getDate() + 6);
+            wEnd.setHours(23, 59, 59, 999);
+            slots.push({ start: new Date(w), end: wEnd, label: formatWeekLabel(w), income: 0, expense: 0, ops: 0 });
+            var nextW = new Date(w);
+            nextW.setDate(nextW.getDate() + 7);
+            w = nextW;
+        }
+    } else if (tf.unit === 'month') {
+        var m = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        while (m <= now) {
+            var mEnd = new Date(m.getFullYear(), m.getMonth() + 1, 0, 23, 59, 59, 999);
+            slots.push({ start: new Date(m), end: mEnd, label: formatMonthLabel(m), income: 0, expense: 0, ops: 0 });
+            m = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+        }
+    } else if (tf.unit === 'q') {
+        var q = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        while (q <= now) {
+            var qEnd = new Date(q.getFullYear(), q.getMonth() + 3, 0, 23, 59, 59, 999);
+            slots.push({ start: new Date(q), end: qEnd, label: formatQuarterLabel(q), income: 0, expense: 0, ops: 0 });
+            q = new Date(q.getFullYear(), q.getMonth() + 3, 1);
+        }
+    } else {
+        var y = new Date(startDate.getFullYear(), 0, 1);
+        while (y <= now) {
+            var yEnd = new Date(y.getFullYear(), 11, 31, 23, 59, 59, 999);
+            slots.push({ start: new Date(y), end: yEnd, label: String(y.getFullYear()), income: 0, expense: 0, ops: 0 });
+            y = new Date(y.getFullYear() + 1, 0, 1);
+        }
+    }
+
+    var balanceBefore = state.balance;
+    for (var k = 0; k < state.history.length; k++) {
+        balanceBefore -= state.history[k].amount;
+    }
+
+    var sorted = state.history.slice().sort(function (a, b) {
+        return new Date(a.date) - new Date(b.date);
+    });
+
+    var running = balanceBefore;
+    var hIdx = 0;
+
+    for (var s = 0; s < slots.length; s++) {
+        var slot = slots[s];
+        while (hIdx < sorted.length) {
+            var h = sorted[hIdx];
+            var hTs = new Date(h.date).getTime();
+            if (hTs < slot.start.getTime()) {
+                running += h.amount;
+                hIdx++;
+                continue;
+            }
+            if (hTs > slot.end.getTime()) break;
+
+            running += h.amount;
+            if (h.amount > 0) slot.income += h.amount;
+            else if (h.amount < 0) slot.expense += Math.abs(h.amount);
+            slot.ops++;
+            hIdx++;
+        }
+        slot.balanceEnd = running;
+    }
+
+    return slots;
+}function formatDayLabel(d) {
+    return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
+}
+
+function formatWeekLabel(d) {
+    return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
+}
+
+function formatMonthLabel(d) {
+    return MONTHS_SHORT[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2);
+}
+
+function formatQuarterLabel(d) {
+    var q = Math.floor(d.getMonth() / 3) + 1;
+    return 'Q' + q + ' ' + String(d.getFullYear()).slice(2);
+}
+
+function formatPeriodFull(slot, tfId) {
+    if (tfId === 'D1') {
+        return slot.start.getDate() + ' ' + MONTHS_FULL[slot.start.getMonth()] + ' ' + slot.start.getFullYear();
+    }
+    if (tfId === 'W1') {
+        var s = slot.start, e = slot.end;
+        var sStr = s.getDate() + ' ' + MONTHS_SHORT[s.getMonth()];
+        var eStr = e.getDate() + ' ' + MONTHS_SHORT[e.getMonth()];
+        return sStr + ' — ' + eStr + ' ' + s.getFullYear();
+    }
+    if (tfId === 'M1') {
+        return MONTHS_FULL[slot.start.getMonth()] + ' ' + slot.start.getFullYear();
+    }
+    if (tfId === 'M3') {
+        var q = Math.floor(slot.start.getMonth() / 3) + 1;
+        return 'Квартал ' + q + ', ' + slot.start.getFullYear();
+    }
+    return 'Год ' + slot.start.getFullYear();
+}
+function initCanvasHiDPI(canvas, cssW, cssH) {
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width  = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    canvas.style.width  = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+}
+
+function drawChart(canvas, slots, tfId) {
+    if (!canvas || !slots || slots.length === 0) return;
+
+    var wrap = canvas.parentNode;
+    var cssW = wrap.clientWidth;
+    var cssH = 320;
+    var ctx = initCanvasHiDPI(canvas, cssW, cssH);
+
+    var PAD_L = 44, PAD_R = 12, PAD_T = 12, PAD_B = 22;
+    var GAP = 6, VOL_H = 60;
+
+    var chartW = cssW - PAD_L - PAD_R;
+    var chartH = cssH - PAD_T - PAD_B - GAP - VOL_H;
+
+    var lineTop = PAD_T;
+    var lineBot = PAD_T + chartH;
+    var volTop  = lineBot + GAP;
+    var volBot  = volTop + VOL_H;
+
+    var C_GRID  = '#2a3548';
+    var C_AXIS  = '#3a4558';
+    var C_TEXT  = '#8b9bb4';
+    var C_LINE  = '#00d2ff';
+    var C_GREEN = '#00d26a';
+    var C_RED   = '#ff4757';
+
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    var minBal = Infinity, maxBal = -Infinity;
+    for (var i = 0; i < slots.length; i++) {
+        var b = slots[i].balanceEnd;
+        if (b < minBal) minBal = b;
+        if (b > maxBal) maxBal = b;
+    }
+    if (!isFinite(minBal)) { minBal = 0; maxBal = 1; }
+    if (minBal === maxBal) { minBal -= 1; maxBal += 1; }
+
+    var range = maxBal - minBal;
+    minBal -= range * 0.05;
+    maxBal += range * 0.05;
+    if (minBal > 0 && minBal < range * 0.5) minBal = 0;
+    if (maxBal < 0 && maxBal > -range * 0.5) maxBal = 0;
+
+    var yRange = maxBal - minBal;
+    if (yRange === 0) yRange = 1;
+
+    function yForBalance(b) {
+        return lineBot - ((b - minBal) / yRange) * chartH;
+    }
+
+    var maxVol = 0;
+    for (var v = 0; v < slots.length; v++) {
+        if (slots[v].income  > maxVol) maxVol = slots[v].income;
+        if (slots[v].expense > maxVol) maxVol = slots[v].expense;
+    }
+    if (maxVol === 0) maxVol = 1;
+    var volHalf = VOL_H / 2;
+
+    var gridLines = 4;
+    ctx.strokeStyle = C_GRID;
+    ctx.fillStyle = C_TEXT;
+    ctx.font = '10px -apple-system, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 1;
+
+    for (var g = 0; g <= gridLines; g++) {
+        var val = minBal + (yRange * g / gridLines);
+        var yy = yForBalance(val);
+        ctx.beginPath();
+        ctx.moveTo(PAD_L, yy);
+        ctx.lineTo(PAD_L + chartW, yy);
+        ctx.stroke();
+        ctx.fillText(fmtShort(val), PAD_L - 6, yy);
+    }    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    var maxLabels = Math.max(3, Math.floor(chartW / 55));
+    var labelEvery = Math.ceil(slots.length / maxLabels);
+    for (var s2 = 0; s2 < slots.length; s2++) {
+        if (s2 % labelEvery !== 0 && s2 !== slots.length - 1) continue;
+        var lx = PAD_L + (chartW * (s2 + 0.5) / slots.length);
+        ctx.fillText(slots[s2].label, lx, volBot + 4);
+    }
+
+    if (slots.length > 0) {
+        var grad = ctx.createLinearGradient(0, lineTop, 0, lineBot);
+        grad.addColorStop(0, 'rgba(0,210,255,0.18)');
+        grad.addColorStop(1, 'rgba(0,210,255,0)');
+
+        ctx.beginPath();
+        for (var p = 0; p < slots.length; p++) {
+            var px = PAD_L + (chartW * (p + 0.5) / slots.length);
+            var py = yForBalance(slots[p].balanceEnd);
+            if (p === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        var lastX = PAD_L + (chartW * (slots.length - 0.5) / slots.length);
+        var firstX = PAD_L + (chartW * 0.5 / slots.length);
+        ctx.lineTo(lastX, lineBot);
+        ctx.lineTo(firstX, lineBot);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.beginPath();
+        for (var p2 = 0; p2 < slots.length; p2++) {
+            var px2 = PAD_L + (chartW * (p2 + 0.5) / slots.length);
+            var py2 = yForBalance(slots[p2].balanceEnd);
+            if (p2 === 0) ctx.moveTo(px2, py2);
+            else ctx.lineTo(px2, py2);
+        }
+        ctx.strokeStyle = C_LINE;
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        if (slots.length <= 40) {
+            ctx.fillStyle = C_LINE;
+            for (var p3 = 0; p3 < slots.length; p3++) {
+                var px3 = PAD_L + (chartW * (p3 + 0.5) / slots.length);
+                var py3 = yForBalance(slots[p3].balanceEnd);
+                ctx.beginPath();
+                ctx.arc(px3, py3, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    ctx.strokeStyle = C_AXIS;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, volTop + volHalf);
+    ctx.lineTo(PAD_L + chartW, volTop + volHalf);
+    ctx.stroke();
+
+    var slotW = chartW / slots.length;
+    var barW = Math.max(1, Math.min(slotW * 0.7, 20));
+
+    for (var bx = 0; bx < slots.length; bx++) {
+        var sl = slots[bx];
+        var cx = PAD_L + slotW * (bx + 0.5);
+
+        if (sl.income > 0) {
+            var hInc = (sl.income / maxVol) * volHalf;
+            ctx.fillStyle = C_GREEN;
+            ctx.fillRect(cx - barW / 2, volTop + volHalf - hInc, barW, hInc);
+        }
+        if (sl.expense > 0) {
+            var hExp = (sl.expense / maxVol) * volHalf;
+            ctx.fillStyle = C_RED;
+            ctx.fillRect(cx - barW / 2, volTop + volHalf, barW, hExp);
+        }
+    }
+
+    ctx.strokeStyle = C_AXIS;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD_L, lineTop);
+    ctx.lineTo(PAD_L, volBot);
+    ctx.stroke();
+}
+var chartSlotsCache = [];
+var chartTfCache = 'D1';
+
+function renderAnalytics(c) {
+    var currentTf = state.tf || 'D1';
+
+    var tfHtml = '<div class="tf-switcher">';
+    for (var i = 0; i < TIMEFRAMES.length; i++) {
+        var tf = TIMEFRAMES[i];
+        tfHtml += '<button type="button" class="tf-btn ' +
+            (currentTf === tf.id ? 'active' : '') +
+            '" data-action="tf" data-tf="' + tf.id + '">' + tf.label + '</button>';
+    }
+    tfHtml += '</div>';
+
+    var slots = buildChartData(currentTf);
+
+    var totalIncome = 0, totalExpense = 0, totalOps = 0;
+    var unitDays = 1;
+    for (var u = 0; u < TIMEFRAMES.length; u++) {
+        if (TIMEFRAMES[u].id === currentTf) {
+            unitDays = TIMEFRAMES[u].unit === 'day' ? 1
+                     : TIMEFRAMES[u].unit === 'week' ? 7
+                     : TIMEFRAMES[u].unit === 'month' ? 30
+                     : TIMEFRAMES[u].unit === 'q' ? 90 : 365;
+            break;
+        }
+    }
+    for (var j = 0; j < slots.length; j++) {
+        totalIncome  += slots[j].income;
+        totalExpense += slots[j].expense;
+        totalOps     += slots[j].ops;
+    }
+    var netChange = totalIncome - totalExpense;
+    var netClass = netChange >= 0 ? 'pos' : 'neg';
+    var netSign  = netChange >= 0 ? '+' : '';
+    var daysInPeriod = Math.max(1, slots.length * unitDays);
+    var avgPerDay = totalExpense / daysInPeriod;
+
+    var startTs = slots.length > 0 ? slots[0].start.getTime() : 0;
+    var endTs   = slots.length > 0 ? slots[slots.length - 1].end.getTime() : Date.now();
+
+    var expSums = {}, incSums = {};
+    for (var e0 = 0; e0 < CATEGORIES.length; e0++) expSums[CATEGORIES[e0].id] = 0;
+    for (var i0 = 0; i0 < CATEGORIES_INCOME.length; i0++) incSums[CATEGORIES_INCOME[i0].id] = 0;
+
+    for (var k = 0; k < state.history.length; k++) {
+        var h = state.history[k];
+        var hTs = new Date(h.date).getTime();
+        if (hTs < startTs || hTs > endTs) continue;
+        if (h.amount < 0) {
+            var catE = h.categoryId || DEFAULT_CATEGORY_ID;
+            if (expSums[catE] === undefined) expSums[catE] = 0;
+            expSums[catE] += Math.abs(h.amount);
+        } else if (h.amount > 0) {
+            var catI = h.categoryId || DEFAULT_INCOME_CATEGORY_ID;
+            if (incSums[catI] === undefined) incSums[catI] = 0;
+            incSums[catI] += h.amount;
+        }
+    }
+
+    var totalExpSum = 0;
+    var totalIncSum = 0;
+    for (var e1 = 0; e1 < CATEGORIES.length; e1++) {
+        totalExpSum += expSums[CATEGORIES[e1].id] || 0;
+    }
+    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) {
+        totalIncSum += incSums[CATEGORIES_INCOME[i1].id] || 0;
+    }
+
+    var expRowsHtml = '';
+    for (var ei = 0; ei < CATEGORIES.length; ei++) {
+        var catE2 = CATEGORIES[ei];
+        var sumE = expSums[catE2.id] || 0;
+        var pctE = totalExpSum > 0 ? Math.round((sumE / totalExpSum) * 100) : 0;
+        expRowsHtml +=
+            '<div class="cat-table-row">' +
+                '<span class="ct-dot" style="background:' + catE2.color + '"></span>' +
+                '<span class="ct-name">' + catE2.icon + ' ' + esc(catE2.name) + '</span>' +
+                '<span class="ct-amount">' + fmt(sumE) + '</span>' +
+                '<span class="ct-pct">' + pctE + '%</span>' +
+            '</div>';
+    }
+
+    var incRowsHtml = '';
+    for (var ii = 0; ii < CATEGORIES_INCOME.length; ii++) {
+        var catI2 = CATEGORIES_INCOME[ii];
+        var sumI = incSums[catI2.id] || 0;
+        var pctI = totalIncSum > 0 ? Math.round((sumI / totalIncSum) * 100) : 0;
+        incRowsHtml +=
+            '<div class="cat-table-row">' +
+                '<span class="ct-dot" style="background:' + catI2.color + '"></span>' +
+                '<span class="ct-name">' + catI2.icon + ' ' + esc(catI2.name) + '</span>' +
+                '<span class="ct-amount">' + fmt(sumI) + '</span>' +
+                '<span class="ct-pct">' + pctI + '%</span>' +
+            '</div>';
+    }
+
+    var html =
+        '<div class="card">' +
+            tfHtml +
+            '<div class="chart-wrap">' +
+                '<canvas class="chart-canvas" id="chartCanvas"></canvas>' +
+            '</div>' +
+            '<div class="analytics-summary">' +
+                '<div class="as-row"><span>Доходы за период</span><b class="pos">+' + fmt(totalIncome) + '</b></div>' +
+                '<div class="as-row"><span>Расходы за период</span><b class="neg">−' + fmt(totalExpense) + '</b></div>' +
+                '<div class="as-row"><span>Итог</span><b class="' + netClass + '">' + netSign + fmt(netChange) + '</b></div>' +
+                '<div class="as-row"><span>Операций</span><b>' + totalOps + '</b></div>' +
+                '<div class="as-row"><span>Средний расход/день</span><b>' + fmt(avgPerDay) + '</b></div>' +
+            '</div>' +
+        '</div>' +
+        '<div class="card">' +
+            '<div class="card-title" style="margin-bottom:10px">Доходы по категориям</div>' +
+            (totalIncSum > 0
+                ? '<div class="cat-table">' + incRowsHtml + '</div>'
+                : '<div class="empty-state">За период доходов нет</div>') +
+        '</div>' +
+        '<div class="card">' +
+            '<div class="card-title" style="margin-bottom:10px">Расходы по категориям</div>' +
+            (totalExpSum > 0
+                ? '<div class="cat-table">' + expRowsHtml + '</div>'
+                : '<div class="empty-state">За период расходов нет</div>') +
+        '</div>' +
+        buildPeriodBlockHtml();
+
+    c.innerHTML = html;
+
+    requestAnimationFrame(function () {
+        var canvas = document.getElementById('chartCanvas');
+        if (canvas) {
+            drawChart(canvas, slots, currentTf);
+            chartSlotsCache = slots;
+            chartTfCache = currentTf;
+        }
+    });
+}
+
+function setTimeframe(tfId) {
+    if (!isValidTf(tfId)) return;
+    if (state.tf === tfId) return;
+    state.tf = tfId;
+    saveState();
+    hideChartTooltip();
+    renderAnalytics(document.getElementById('mainContent'));
+}
+function handleChartTap(e, canvas) {
+    if (!chartSlotsCache || chartSlotsCache.length === 0) return;
+
+    var rect = canvas.getBoundingClientRect();
+    var tapX = e.clientX - rect.left;
+
+    var cssW = rect.width;
+    var PAD_L = 44, PAD_R = 12;
+    var chartW = cssW - PAD_L - PAD_R;
+
+    if (tapX < PAD_L || tapX > PAD_L + chartW) {
+        hideChartTooltip();
+        return;
+    }
+
+    var slotW = chartW / chartSlotsCache.length;
+    var idx = Math.floor((tapX - PAD_L) / slotW);
+    if (idx < 0 || idx >= chartSlotsCache.length) {
+        hideChartTooltip();
+        return;
+    }
+
+    var slot = chartSlotsCache[idx];
+    showChartTooltip(slot, e.clientX, e.clientY);
+}
+
+function showChartTooltip(slot, tapX, tapY) {
+    var tt = document.getElementById('chartTooltip');
+    if (!tt) return;
+
+    var period = formatPeriodFull(slot, chartTfCache);
+    var net = slot.income - slot.expense;
+    var netSign = net >= 0 ? '+' : '';
+    var netClass = net >= 0 ? 'pos' : 'neg';
+
+    var expSums = {}, incSums = {};
+    for (var e0 = 0; e0 < CATEGORIES.length; e0++) expSums[CATEGORIES[e0].id] = 0;
+    for (var i0 = 0; i0 < CATEGORIES_INCOME.length; i0++) incSums[CATEGORIES_INCOME[i0].id] = 0;
+
+    for (var i = 0; i < state.history.length; i++) {
+        var h = state.history[i];
+        var hTs = new Date(h.date).getTime();
+        if (hTs < slot.start.getTime() || hTs > slot.end.getTime()) continue;
+        if (h.amount < 0) {
+            var catE = h.categoryId || DEFAULT_CATEGORY_ID;
+            if (expSums[catE] === undefined) expSums[catE] = 0;
+            expSums[catE] += Math.abs(h.amount);
+        } else if (h.amount > 0) {
+            var catI = h.categoryId || DEFAULT_INCOME_CATEGORY_ID;
+            if (incSums[catI] === undefined) incSums[catI] = 0;
+            incSums[catI] += h.amount;
+        }
+    }
+
+    var totalExpTt = 0;
+    var totalIncTt = 0;
+    for (var e1 = 0; e1 < CATEGORIES.length; e1++) {
+        totalExpTt += expSums[CATEGORIES[e1].id] || 0;
+    }
+    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) {
+        totalIncTt += incSums[CATEGORIES_INCOME[i1].id] || 0;
+    }
+
+    var catHtml = '';
+
+    if (totalIncTt > 0) {
+        catHtml += '<div class="tt-sep"></div>';
+        for (var ci1 = 0; ci1 < CATEGORIES_INCOME.length; ci1++) {
+            var catDefI = CATEGORIES_INCOME[ci1];
+            var sumI = incSums[catDefI.id] || 0;
+            catHtml +=
+                '<div class="tt-cat-row">' +
+                    '<span style="color:' + catDefI.color + '">' + catDefI.icon + ' ' + esc(catDefI.name) + '</span>' +
+                    '<span style="color:' + catDefI.color + ';font-weight:bold">' + fmt(sumI) + '</span>' +
+                '</div>';
+        }
+    }
+
+    if (totalExpTt > 0) {
+        catHtml += '<div class="tt-sep"></div>';
+        for (var ci2 = 0; ci2 < CATEGORIES.length; ci2++) {
+            var catDefE = CATEGORIES[ci2];
+            var sumE = expSums[catDefE.id] || 0;
+            catHtml +=
+                '<div class="tt-cat-row">' +
+                    '<span style="color:' + catDefE.color + '">' + catDefE.icon + ' ' + esc(catDefE.name) + '</span>' +
+                    '<span style="color:' + catDefE.color + ';font-weight:bold">' + fmt(sumE) + '</span>' +
+                '</div>';
+        }
+    }
+
+    var balanceStr = fmt(slot.balanceEnd !== undefined ? slot.balanceEnd : 0);
+
+    tt.innerHTML =
+        '<div class="tt-period">' + esc(period) + '</div>' +
+        '<div class="tt-row"><span class="tt-label">Доход</span><span class="tt-value pos">+' + fmt(slot.income) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Расход</span><span class="tt-value neg">−' + fmt(slot.expense) + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Итог</span><span class="tt-value ' + netClass + '">' + netSign + fmt(net) + '</span></div>' +
+        '<div class="tt-sep"></div>' +
+        '<div class="tt-row"><span class="tt-label">Баланс</span><span class="tt-value">' + balanceStr + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Операций</span><span class="tt-value">' + slot.ops + '</span></div>' +
+        catHtml;
+
+    tt.style.display = 'block';
+
+    var ttRect = tt.getBoundingClientRect();
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var offset = 12;
+
+    var posX = tapX + offset;
+    var posY = tapY + offset;
+
+    if (posX + ttRect.width > vw - 8) posX = tapX - ttRect.width - offset;
+    if (posX < 8) posX = 8;
+    if (posY + ttRect.height > vh - 8) posY = tapY - ttRect.height - offset;
+    if (posY < 8) posY = 8;
+
+    tt.style.left = posX + 'px';
+    tt.style.top  = posY + 'px';
+}
+
+function hideChartTooltip() {
+    var tt = document.getElementById('chartTooltip');
+    if (tt) {
+        tt.style.display = 'none';
+        tt.innerHTML = '';
+    }
+}
+function openPeriodPicker() {
+    var fromIso = state.periodFrom || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    var toIso   = state.periodTo   || new Date().toISOString();
+
+    delete _datePickerState.periodFrom;
+    delete _datePickerState.periodTo;
+    ensureDatePickerState('periodFrom', fromIso);
+    ensureDatePickerState('periodTo', toIso);
+
+    showModal(
+        '<h3>Выбрать период</h3>' +
+        '<div class="period-picker-label">От</div>' +
+        buildDatePickerHtml('periodFrom', fromIso) +
+        '<div class="period-picker-label">До</div>' +
+        buildDatePickerHtml('periodTo', toIso) +
+        '<button type="button" class="btn-full btn-primary" data-action="period-apply">Применить</button>' +
+        '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>'
+    );
+}
+
+function applyPeriod() {
+    var fromSt = _datePickerState.periodFrom;
+    var toSt   = _datePickerState.periodTo;
+    if (!fromSt || !toSt) return;
+
+    var fromDate = new Date(fromSt.year, fromSt.month - 1, fromSt.day, 0, 0, 0);
+    var toDate   = new Date(toSt.year, toSt.month - 1, toSt.day, 23, 59, 59);
+
+    if (fromDate > toDate) {
+        alert('Дата «От» позже, чем «До». Поменяй местами.');
+        return;
+    }
+
+    state.periodFrom = fromDate.toISOString();
+    state.periodTo = toDate.toISOString();
+
+    delete _datePickerState.periodFrom;
+    delete _datePickerState.periodTo;
+
+    saveState();
+    hideModal();
+    renderAnalytics(document.getElementById('mainContent'));
+}
+
+function buildPeriodBlockHtml() {
+    if (!state.periodFrom || !state.periodTo) {
+        return '<div class="card">' +
+            '<div class="card-title" style="margin-bottom:12px">Анализ периода</div>' +
+            '<div class="period-empty">' +
+                '<button type="button" class="period-empty-btn" data-action="period-open">Выбрать период</button>' +
+            '</div>' +
+        '</div>';
+    }
+
+    var fromDate = new Date(state.periodFrom);
+    var toDate = new Date(state.periodTo);
+    var fromStr = fromDate.getDate() + ' ' + MONTHS_SHORT[fromDate.getMonth()] + ' ' + fromDate.getFullYear();
+    var toStr = toDate.getDate() + ' ' + MONTHS_SHORT[toDate.getMonth()] + ' ' + toDate.getFullYear();
+
+    var expSums = {}, incSums = {};
+    for (var e = 0; e < CATEGORIES.length; e++) expSums[CATEGORIES[e].id] = 0;
+    for (var i = 0; i < CATEGORIES_INCOME.length; i++) incSums[CATEGORIES_INCOME[i].id] = 0;
+
+    var fromTs = fromDate.getTime();
+    var toTs = toDate.getTime();
+
+    for (var k = 0; k < state.history.length; k++) {
+        var h = state.history[k];
+        var hTs = new Date(h.date).getTime();
+        if (hTs < fromTs || hTs > toTs) continue;
+        if (h.amount < 0) {
+            var catE = h.categoryId || DEFAULT_CATEGORY_ID;
+            if (expSums[catE] === undefined) expSums[catE] = 0;
+            expSums[catE] += Math.abs(h.amount);
+        } else if (h.amount > 0) {
+            var catI = h.categoryId || DEFAULT_INCOME_CATEGORY_ID;
+            if (incSums[catI] === undefined) incSums[catI] = 0;
+            incSums[catI] += h.amount;
+        }
+    }
+
+    var totalExp = 0, totalInc = 0;
+    for (var ei = 0; ei < CATEGORIES.length; ei++) totalExp += expSums[CATEGORIES[ei].id] || 0;
+    for (var ii = 0; ii < CATEGORIES_INCOME.length; ii++) totalInc += incSums[CATEGORIES_INCOME[ii].id] || 0;
+
+    var totalAll = totalExp + totalInc;
+    var items = [];
+
+    for (var c1 = 0; c1 < CATEGORIES.length; c1++) {
+        var cat1 = CATEGORIES[c1];
+        var sum1 = expSums[cat1.id] || 0;
+        var pct1 = totalAll > 0 ? (sum1 / totalAll) * 100 : 0;
+        items.push({ icon: cat1.icon, name: cat1.name, color: cat1.color, amount: sum1, pct: pct1, type: 'expense', hasData: sum1 > 0 });
+    }
+
+    for (var c2 = 0; c2 < CATEGORIES_INCOME.length; c2++) {
+        var cat2 = CATEGORIES_INCOME[c2];
+        var sum2 = incSums[cat2.id] || 0;
+        var pct2 = totalAll > 0 ? (sum2 / totalAll) * 100 : 0;
+        items.push({ icon: cat2.icon, name: cat2.name, color: cat2.color, amount: sum2, pct: pct2, type: 'income', hasData: sum2 > 0 });
+    }
+
+    items.sort(function (a, b) { return Math.abs(b.amount) - Math.abs(a.amount); });
+
+    var maxAmount = 0;
+    for (var mi = 0; mi < items.length; mi++) {
+        if (items[mi].amount > maxAmount) maxAmount = items[mi].amount;
+    }
+    if (maxAmount === 0) maxAmount = 1;
+
+    var candlesHtml = '';
+    for (var ci = 0; ci < items.length; ci++) {
+        var it = items[ci];
+        var heightPx = it.hasData ? Math.max(4, Math.round((it.amount / maxAmount) * 160)) : 3;
+        var barClass = it.hasData ? it.type : 'empty';
+        var pctStr = it.hasData ? (it.pct < 1 ? '<1%' : Math.round(it.pct) + '%') : '0%';
+        var amountStr = it.hasData ? fmtShort(it.amount) : '';
+
+        candlesHtml +=
+            '<div class="candle">' +
+                '<div class="candle-amount">' + amountStr + '</div>' +
+                '<div class="candle-bar ' + barClass + '" style="height:' + heightPx + 'px"></div>' +
+                '<div class="candle-icon">' + it.icon + '</div>' +
+                '<div class="candle-pct">' + pctStr + '</div>' +
+            '</div>';
+    }
+
+    var net = totalInc - totalExp;
+    var netClass = net >= 0 ? 'pos' : 'neg';
+    var netSign = net >= 0 ? '+' : '';
+    var netColor = net >= 0 ? 'var(--green)' : 'var(--red)';
+
+    return '<div class="card">' +
+        '<div class="card-title" style="margin-bottom:12px">Анализ периода</div>' +
+        '<div class="period-header">' +
+            '<div class="period-range">' +
+                '<span class="pr-label">Период</span>' +
+                fromStr + ' — ' + toStr +
+            '</div>' +
+            '<button type="button" class="period-edit-btn" data-action="period-open">Изменить</button>' +
+        '</div>' +
+        '<div class="candles-wrap">' +
+            '<div class="candles-row">' + candlesHtml + '</div>' +
+        '</div>' +
+        '<div class="period-legend">' +
+            '<span class="pl-item"><span class="pl-dot income"></span>Доходы</span>' +
+            '<span class="pl-item"><span class="pl-dot expense"></span>Расходы</span>' +
+            '<span class="pl-item"><span class="pl-dot empty"></span>Нет данных</span>' +
+        '</div>' +
+        '<div class="period-totals">' +
+            '<div class="pt-row">' +
+                '<span class="pt-label">Всего доходов</span>' +
+                '<span class="pt-value" style="color:var(--green)">' + (totalInc > 0 ? '+' : '') + fmt(totalInc) + '</span>' +
+            '</div>' +
+            '<div class="pt-row">' +
+                '<span class="pt-label">Всего расходов</span>' +
+                '<span class="pt-value" style="color:var(--red)">' + (totalExp > 0 ? '−' : '') + fmt(totalExp) + '</span>' +
+            '</div>' +
+            '<div class="pt-row pt-row-total">' +
+                '<span class="pt-label">Итог за период</span>' +
+                '<span class="pt-value" style="color:' + netColor + '">' + netSign + fmt(net) + '</span>' +
+            '</div>' +
+        '</div>' +
+    '</div>';
+}
+function buildBudgetsBlockHtml() {
+    var viewMonth = state.budgetsViewMonth || getCurrentMonthKey();
+
+    var budgetsForMonth = state.budgets.filter(function (b) {
+        return b.month === viewMonth;
+    });
+
+    budgetsForMonth.sort(function (a, b) {
+        var idxA = -1, idxB = -1;
+        for (var i = 0; i < CATEGORIES.length; i++) {
+            if (CATEGORIES[i].id === a.categoryId) idxA = i;
+            if (CATEGORIES[i].id === b.categoryId) idxB = i;
+        }
+        return idxA - idxB;
+    });
+
+    var currentKey = getCurrentMonthKey();
+    var canGoForward = viewMonth < currentKey;
+
+    var rowsHtml = '';
+    if (budgetsForMonth.length === 0) {
+        rowsHtml = '<div class="budgets-empty">' +
+            'На этот месяц бюджетов нет<br>' +
+            '<span style="font-size:11px;">Нажми «Изменить бюджеты» ниже</span>' +
+        '</div>';
+    } else {
+        for (var i = 0; i < budgetsForMonth.length; i++) {
+            var b = budgetsForMonth[i];
+            var cat = getCategory(b.categoryId);
+            if (!cat) continue;
+
+            var spent = getSpentForCategory(b.categoryId, viewMonth);
+            var pct = b.limit > 0 ? (spent / b.limit) * 100 : 0;
+            var barPct = Math.min(100, pct);
+            var color = getBudgetColor(pct);
+            var over = spent > b.limit;
+            var overAmount = over ? (spent - b.limit) : 0;
+
+            rowsHtml +=
+                '<div class="budget-row">' +
+                    '<div class="budget-row-top">' +
+                        '<span class="budget-row-name">' + cat.icon + ' ' + esc(cat.name) + '</span>' +
+                        '<span class="budget-row-amounts"><b>' + fmt(spent) + '</b> / ' + fmt(b.limit) + '</span>' +
+                    '</div>' +
+                    '<div class="budget-bar-bg">' +
+                        '<div class="budget-bar-fill" style="width:' + barPct + '%;background:' + color + '"></div>' +
+                    '</div>' +
+                    (over ? '<div class="budget-over">Превышение: ' + fmt(overAmount) + '</div>' : '') +
+                '</div>';
+        }
+    }
+
+    var collapseClass = state.budgetsCollapsed ? ' collapsed' : '';
+    var rotateClass = state.budgetsCollapsed ? ' rotated' : '';
+
+    return '<div class="card">' +
+        '<div class="budgets-header">' +
+            '<div class="card-title" style="margin:0;">Бюджеты</div>' +
+            '<button type="button" class="budgets-toggle ' + rotateClass + '" ' +
+                'data-action="budgets-toggle" aria-label="Свернуть">▼</button>' +
+        '</div>' +
+        '<div class="budgets-collapse-wrap' + collapseClass + '">' +
+            '<div class="budgets-month-nav">' +
+                '<button type="button" class="budgets-month-arrow" ' +
+                    'data-action="budgets-month-prev" aria-label="Прошлый месяц">←</button>' +
+                '<div class="budgets-month-label" data-action="budgets-month-open">' +
+                    formatMonthRu(viewMonth) +
+                '</div>' +
+                '<button type="button" class="budgets-month-arrow" ' +
+                    'data-action="budgets-month-next"' + (canGoForward ? '' : ' disabled') +
+                    ' aria-label="Следующий месяц">→</button>' +
+            '</div>' +
+            '<div class="budgets-list">' + rowsHtml + '</div>' +
+            '<button type="button" class="budgets-add-btn" data-action="budgets-edit-open">' +
+                '+ Изменить бюджеты' +
+            '</button>' +
+        '</div>' +
+    '</div>';
+}
+function shiftMonthKey(key, delta) {
+    var parts = key.split('-');
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    if (isNaN(y) || isNaN(m)) return key;
+    m += delta;
+    while (m < 1) { m += 12; y -= 1; }
+    while (m > 12) { m -= 12; y += 1; }
+    return y + '-' + (m < 10 ? '0' + m : m);
+}
+
+function budgetsShiftMonth(delta) {
+    var current = state.budgetsViewMonth || getCurrentMonthKey();
+    var next = shiftMonthKey(current, delta);
+    if (next > getCurrentMonthKey()) return;
+    state.budgetsViewMonth = next;
+    saveState();
+    renderBalance(document.getElementById('mainContent'));
+}
+
+function budgetsToggleCollapse() {
+    state.budgetsCollapsed = !state.budgetsCollapsed;
+    saveState();
+
+    var wrap = document.querySelector('.budgets-collapse-wrap');
+    var btn = document.querySelector('.budgets-toggle');
+    if (wrap) wrap.classList.toggle('collapsed');
+    if (btn) btn.classList.toggle('rotated');
+}
+
+function openBudgetsMonthPicker() {
+    var months = getAllMonthsWithBudgets();
+    var currentKey = getCurrentMonthKey();
+
+    if (months.indexOf(currentKey) === -1) months.push(currentKey);
+    months.sort();
+    months.reverse();
+
+    var viewMonth = state.budgetsViewMonth || currentKey;
+
+    var html = '<h3>Выбрать месяц</h3>' +
+        '<div class="budgets-month-list">';
+    for (var i = 0; i < months.length; i++) {
+        var mk = months[i];
+        var active = (mk === viewMonth) ? ' active' : '';
+        html += '<button type="button" class="budgets-month-item' + active + '" ' +
+            'data-action="budgets-month-set" data-month="' + esc(mk) + '">' +
+            formatMonthRu(mk) +
+        '</button>';
+    }
+    html += '</div>';
+
+    showModal(html);
+}
+
+function budgetsSetMonth(key) {
+    if (!key) return;
+    if (key > getCurrentMonthKey()) return;
+    state.budgetsViewMonth = key;
+    saveState();
+    hideModal();
+    renderBalance(document.getElementById('mainContent'));
+}
+function openBudgetsEditModal() {
+    var viewMonth = state.budgetsViewMonth || getCurrentMonthKey();
+    var isCurrentMonth = (viewMonth === getCurrentMonthKey());
+
+    var html = '<h3>Бюджеты на ' + formatMonthRu(viewMonth) + '</h3>';
+
+    if (!isCurrentMonth) {
+        html += '<p style="font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.4;">' +
+            'Редактирование прошлых месяцев. Изменения сохранятся только для этого месяца.' +
+        '</p>';
+    } else {
+        html += '<p style="font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.4;">' +
+            'Оставь поле пустым — бюджета не будет. Число — лимит в рублях.' +
+        '</p>';
+    }
+
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+
+    for (var i = 0; i < CATEGORIES.length; i++) {
+        var cat = CATEGORIES[i];
+        var currentLimit = getBudgetForCategory(cat.id, viewMonth);
+        var value = (currentLimit !== null) ? String(currentLimit) : '';
+
+        html += '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<span style="width:34px;height:34px;border-radius:50%;' +
+                'display:inline-flex;align-items:center;justify-content:center;' +
+                'font-size:18px;background:' + cat.color + '33;flex-shrink:0;">' +
+                cat.icon +
+            '</span>' +
+            '<span style="flex:1;font-size:14px;color:var(--text);min-width:0;' +
+                'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+                esc(cat.name) +
+            '</span>' +
+            '<input type="text" inputmode="decimal" autocomplete="off" ' +
+                'data-budget-input="' + esc(cat.id) + '" ' +
+                'placeholder="0" value="' + esc(value) + '" ' +
+                'style="width:110px;margin:0;padding:10px;font-size:15px;text-align:right;">' +
+        '</div>';
+    }
+
+    html += '</div>';
+
+    html += '<button type="button" class="btn-full btn-primary" ' +
+        'data-action="budgets-save" data-month="' + esc(viewMonth) + '" ' +
+        'style="margin-top:16px;">Сохранить</button>';
+    html += '<button type="button" class="btn-full btn-outline" ' +
+        'data-action="close-modal">Отмена</button>';
+
+    showModal(html);
+}
+
+function saveBudgetsFromModal(monthKey) {
+    if (!monthKey) return;
+
+    var inputs = document.querySelectorAll('[data-budget-input]');
+    if (!inputs || inputs.length === 0) {
+        hideModal();
+        return;
+    }
+
+    for (var i = 0; i < inputs.length; i++) {
+        var inp = inputs[i];
+        var catId = inp.getAttribute('data-budget-input');
+        if (!catId) continue;
+
+        var raw = String(inp.value).replace(/\s/g, '').replace(',', '.').trim();
+        var limit = 0;
+
+        if (raw !== '') {
+            var n = Number(raw);
+            if (!isFinite(n) || n < 0) {
+                alert('Проверь значения бюджетов. Только положительные числа.');
+                return;
+            }
+            limit = n;
+        }
+
+        setBudgetLimit(catId, limit, monthKey);
+    }
+
+    if (state.budgetsViewMonth === null) {
+        state.budgetsViewMonth = monthKey;
+    }
+
+    saveState();
+    hideModal();
+    renderBalance(document.getElementById('mainContent'));
+}
+function renderSettings(c) {
+    c.innerHTML =
+        '<div class="card">' +
+            '<div class="card-title" style="margin-bottom:15px">Управление данными</div>' +
+            '<p style="font-size:13px; color:var(--dim); margin:0 0 15px; line-height:1.5;">' +
+                'Все данные хранятся только на этом устройстве. Регулярно делай резервные копии.' +
+            '</p>' +
+            '<button type="button" class="btn-full btn-primary" data-action="export">💾 Экспорт (Скачать JSON)</button>' +
+            '<button type="button" class="btn-full btn-outline" data-action="import">📥 Импорт (Загрузить JSON)</button>' +
+            '<input type="file" id="importFile" accept=".json,application/json">' +
+            '<div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">' +
+                '<div class="card-title" style="margin-bottom:10px">Сброс данных</div>' +
+                '<button type="button" class="btn-full btn-danger" data-action="reset">Удалить все данные</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="card">' +
+            '<div class="card-title">О приложении</div>' +
+            '<p style="font-size:12px; color:var(--dim); line-height:1.5; margin:8px 0 0;">' +
+                'Finance list<br>' +
+                'Локальное хранилище. Без серверов. Без рекламы.<br>' +
+                'Данные никогда не покидают твоё устройство.' +
+            '</p>' +
+        '</div>';
+}
+
+function exportData() {
+    var json = JSON.stringify(state, null, 2);
+    var filename = 'finance_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+
+    try {
+        var blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { try { URL.revokeObjectURL(url); } catch (_) {} }, 1500);
+        return;
+    } catch (e) {
+        console.warn('[FinanceList] Blob export failed, using data URI', e);
+    }
+
+    try {
+        var dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+        var a2 = document.createElement('a');
+        a2.href = dataUri;
+        a2.download = filename;
+        document.body.appendChild(a2);
+        a2.click();
+        document.body.removeChild(a2);
+    } catch (e2) {
+        alert('Экспорт не удался. Скопируй данные вручную из консоли.');
+        console.log(json);
+    }
+}
+
+function importData() {
+    var input = document.getElementById('importFile');
+    if (!input || !input.files || !input.files[0]) return;
+
+    var file = input.files[0];
+    var reader = new FileReader();
+
+    reader.onload = function (e) {
+        try {
+            var imported = JSON.parse(e.target.result);
+            if (!imported || typeof imported !== 'object' || imported.balance === undefined) {
+                alert('Ошибка: неверный формат файла.');
+                return;
+            }
+            showConfirm(
+                'Заменить все данные?',
+                'Текущие данные будут полностью заменены содержимым файла.',
+                function () {
+                    state = migrate(imported);
+                    saveState();
+                    switchTab('balance');
+                    alert('Данные успешно восстановлены!');
+                },
+                { danger: true, okLabel: 'Заменить' }
+            );
+        } catch (err) {
+            alert('Ошибка чтения файла: ' + err.message);
+        }
+    };
+    reader.onerror = function () { alert('Не удалось прочитать файл.'); };
+    reader.readAsText(file);
+
+    try { input.value = ''; } catch (_) {}
+}
+
+function resetAll() {
+    showConfirm(
+        'Удалить все данные?',
+        'Будут удалены: баланс, долги, планы, история. Восстановить можно только из JSON-бэкапа.',
+        function () {
+            showConfirm(
+                'Последнее предупреждение',
+                'Точно удалить всё? Это необратимо.',
+                function () {
+                    state = emptyState();
+                    saveState();
+                    switchTab('balance');
+                },
+                { danger: true, okLabel: 'Удалить навсегда', hint: 'Тап мимо окна = отмена' }
+            );
+        },
+        { danger: true, okLabel: 'Продолжить' }
+    );
+}
+
+var ACTIONS = {
+    'op':     function (el) { doOp(Number(el.getAttribute('data-sign'))); },
+    'filter': function (el) { setHistoryFilter(el.getAttribute('data-filter')); },
+
+    'cat-pick':   function (el) { pickCategory(el.getAttribute('data-id')); },
+    'cat-cancel': function ()   { cancelCategoryPicker(); },
+
+    'open-cat-filter':  function () { openCategoryFilter(); },
+    'cat-filter-apply': function () { applyCategoryFilter(); },
+    'cat-filter-reset': function () { resetCategoryFilter(); },
+
+    'hist-date-open':  function () { openHistoryDatePicker(); },
+    'hist-date-apply': function () { applyHistoryDate(); },
+    'hist-date-clear': function () { clearHistoryDate(); },
+
+    'clear-history-search': function () {
+        historySearch = '';
+        historyViewCount = 50;
+        renderBalance(document.getElementById('mainContent'));
+    },
+
+    'dp-select': function (el) {
+        var prefix = el.getAttribute('data-prefix');
+        var kind   = el.getAttribute('data-kind');
+        var value  = el.getAttribute('data-value');
+        datePickerSelect(prefix, kind, value);
+    },
+
+    'history-start-select':  function (el) { startSelectionMode(el.getAttribute('data-id')); },
+    'history-toggle-select': function (el) { toggleSelect(el.getAttribute('data-id')); },
+    'exit-selection':        function ()   { exitSelectionMode(); },
+
+    'bulk-edit-category':  function ()   { bulkEditCategory(); },
+    'bulk-edit-date':      function ()   { bulkEditDate(); },
+    'bulk-edit-name':      function ()   { bulkEditName(); },
+    'bulk-delete':         function ()   { bulkDelete(); },
+    'bulk-apply-category': function (el) { bulkApplyCategory(el.getAttribute('data-id'), el.getAttribute('data-type')); },
+    'bulk-apply-date':     function ()   { bulkApplyDate(); },
+    'bulk-apply-name':     function ()   { bulkApplyName(); },
+    'bulk-apply-delete':   function ()   { bulkApplyDelete(); },
+
+    'edit-cat-pick': function (el) { editPickCategory(el.getAttribute('data-id')); },
+
+    'history-edit':        function (el) { showEditHistoryItem(el.getAttribute('data-id')); },
+    'save-edit-history':   function (el) { saveEditedHistory(el.getAttribute('data-id')); },
+    'delete-edit-history': function (el) { deleteFromEdit(el.getAttribute('data-id')); },
+
+    'history-del': function (el) {
+        showDeleteHistoryItem(el.getAttribute('data-id'), { refund: false, restore: false });
+    },
+    'history-confirm-del': function (el) {
+        var id = el.getAttribute('data-id');
+        var refund  = el.getAttribute('data-refund')  === '1';
+        var restore = el.getAttribute('data-restore') === '1';
+        deleteHistoryItem(id, refund, restore);
+    },
+
+    'tf':           function (el) { setTimeframe(el.getAttribute('data-tf')); },
+    'period-open':  function ()   { openPeriodPicker(); },
+    'period-apply': function ()   { applyPeriod(); },
+
+    'budgets-toggle':       function ()   { budgetsToggleCollapse(); },
+    'budgets-month-prev':   function ()   { budgetsShiftMonth(-1); },
+    'budgets-month-next':   function ()   { budgetsShiftMonth(1); },
+    'budgets-month-open':   function ()   { openBudgetsMonthPicker(); },
+    'budgets-month-set':    function (el) { budgetsSetMonth(el.getAttribute('data-month')); },
+    'budgets-edit-open':    function ()   { openBudgetsEditModal(); },
+    'budgets-save':         function (el) { saveBudgetsFromModal(el.getAttribute('data-month')); },
+
+    'add-debt':  function ()   { showAddDebt(); },
+    'edit-debt': function (el) { editDebt(el.getAttribute('data-id')); },
+    'save-debt': function (el) { var id = el.getAttribute('data-id'); saveDebt(id || null); },
+    'pay-debt':  function (el) { showPayDebt(el.getAttribute('data-id')); },
+    'del-debt':  function (el) { delDebt(el.getAttribute('data-id')); },
+
+    'add-plan':  function ()   { showAddPlan(); },
+    'edit-plan': function (el) { editPlan(el.getAttribute('data-id')); },
+    'save-plan': function (el) { var id = el.getAttribute('data-id'); savePlan(id || null); },
+    'move-plan': function (el) { movePlan(el.getAttribute('data-id'), Number(el.getAttribute('data-dir'))); },
+    'fund-plan': function (el) { showFundPlan(el.getAttribute('data-id')); },
+    'save-fund': function (el) { fundPlan(el.getAttribute('data-id')); },
+    'del-plan':  function (el) { delPlan(el.getAttribute('data-id')); },
+
+    'export':      function () { exportData(); },
+    'import':      function () { var i = document.getElementById('importFile'); if (i) i.click(); },
+    'reset':       function () { resetAll(); },
+    'close-modal': function () { hideModal(); },
+
+    'confirm-ok':     function () { handleConfirmOk(); },
+    'confirm-cancel': function () { handleConfirmCancel(); },
+
+    'debt-quick': function (el) { debtQuickFill(Number(el.getAttribute('data-amount'))); },
+    'debt-pay-confirm': function (el) {
+        var id = el.getAttribute('data-id');
+        var input = document.getElementById('debtPayAmount');
+        var amt = input ? input.value : '';
+        hideModal();
+        payDebt(id, amt);
+    }
+};
+
+function handleClick(e) {
+    var t = e.target;
+    if (!t || typeof t.closest !== 'function') return;
+    var el = t.closest('[data-action]');
+    if (!el) return;
+    var action = el.getAttribute('data-action');
+    var fn = ACTIONS[action];
+    if (fn) fn(el);
+}
+
+function handleModalChange(e) {
+    var t = e.target;
+    if (!t) return;
+    if (t.id === 'cbRefund')      { handleRefundToggle(!!t.checked); return; }
+    if (t.id === 'cbRestoreDebt') { handleRestoreToggle(!!t.checked); return; }
+}
+
+function handleMainContentClick(e) {
+    var t = e.target;
+    if (!t) return;
+
+    if (t.id === 'chartCanvas') {
+        handleChartTap(e, t);
+        return;
+    }
+
+    if (typeof t.closest !== 'function') return;
+    var el = t.closest('[data-action]');
+    if (!el) return;
+
+    var action = el.getAttribute('data-action');
+
+    if (action === 'history-edit' && shouldBlockEditClick()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+
+    if (selectionMode && (action === 'history-edit' || action === 'history-toggle-select')) {
+        var id = el.getAttribute('data-id');
+        if (id) toggleSelect(id);
+        return;
+    }
+
+    var fn = ACTIONS[action];
+    if (fn) fn(el);
+}
+
+function bindEvents() {
+    document.getElementById('navTabs').addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t || typeof t.closest !== 'function') return;
+        var btn = t.closest('.tab-btn');
+        if (btn) switchTab(btn.getAttribute('data-tab'));
+    });
+
+    document.getElementById('filtersBar').addEventListener('click', handleClick);
+
+    var contentEl = document.getElementById('mainContent');
+    contentEl.addEventListener('click', handleMainContentClick);
+    contentEl.addEventListener('scroll', handleContentScroll, { passive: true });
+
+    document.getElementById('modalOverlay').addEventListener('click', function (e) {
+        if (e.target && e.target.id === 'modalOverlay') {
+            _pendingOp = null;
+            resetDatePickerState('debt');
+            resetDatePickerState('edit');
+            resetDatePickerState('bulk');
+            hideModal();
+            return;
+        }
+        handleClick(e);
+    });
+
+    document.getElementById('modalOverlay').addEventListener('change', handleModalChange);
+
+    document.body.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'importFile') importData();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            if (modalVisible) {
+                _pendingOp = null;
+                resetDatePickerState('debt');
+                resetDatePickerState('edit');
+                resetDatePickerState('bulk');
+                hideModal();
+            } else if (selectionMode) {
+                exitSelectionMode();
+            } else {
+                hideChartTooltip();
+            }
+        }
+    });
+
+    window.addEventListener('resize', function () {
+        if (currentTab === 'analytics') {
+            var canvas = document.getElementById('chartCanvas');
+            if (canvas && chartSlotsCache && chartSlotsCache.length > 0) {
+                drawChart(canvas, chartSlotsCache, chartTfCache);
+            }
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t) return;
+        if (t.id === 'chartCanvas') return;
+        if (t.closest && t.closest('.chart-tooltip')) return;
+        hideChartTooltip();
+    });
+}
+
+function init() {
+    try {
+        loadState();
+        ensureBudgetsForCurrentMonth();
+        renderHeader();
+        bindEvents();
+        switchTab('balance');
+    } catch (e) {
+        var screen = document.getElementById('errScreen');
+        screen.textContent = 'INIT ERROR:\n' + (e && e.stack ? e.stack : String(e));
+        screen.style.display = 'block';
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
 }
