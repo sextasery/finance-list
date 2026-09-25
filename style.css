@@ -1524,3 +1524,94 @@ input[type="file"] { display: none; }
 }
 .budgets-month-item.active { border-color: var(--blue); color: var(--blue); font-weight: 700; }
 .budgets-month-item:active { background: rgba(0,210,255,0.06); }
+
+/* =========================================================================
+   АНИМАЦИИ
+   ========================================================================= */
+
+/* Карточки появляются при переключении табов (каскад) */
+.content.tab-enter > .card {
+    animation: fsCardIn 300ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+.content.tab-enter > .card:nth-child(1) { animation-delay: 0ms; }
+.content.tab-enter > .card:nth-child(2) { animation-delay: 50ms; }
+.content.tab-enter > .card:nth-child(3) { animation-delay: 100ms; }
+.content.tab-enter > .card:nth-child(4) { animation-delay: 150ms; }
+.content.tab-enter > .card:nth-child(5) { animation-delay: 200ms; }
+
+@keyframes fsCardIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Модалки: overlay fade + modal scale */
+.modal-overlay {
+    display: block !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 250ms ease, visibility 0ms linear 250ms;
+}
+.modal-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 250ms ease, visibility 0ms;
+}
+.modal-overlay.visible .modal {
+    animation: fsModalIn 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes fsModalIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+}
+
+/* Вспышка новой записи в истории */
+.list-item.flash-new {
+    animation: fsFlashNew 900ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.list-item.flash-new.flash-income {
+    --flash-color: rgba(0,210,106,0.25);
+}
+.list-item.flash-new.flash-expense {
+    --flash-color: rgba(255,71,87,0.22);
+}
+@keyframes fsFlashNew {
+    0%   { background: var(--flash-color, rgba(0,210,255,0.2)); }
+    60%  { background: var(--flash-color, rgba(0,210,255,0.12)); }
+    100% { background: transparent; }
+}
+
+/* Свечи растут снизу по очереди */
+.candle-bar {
+    transform-origin: bottom center;
+    animation: fsCandleGrow 400ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+.candle:nth-child(1)  .candle-bar { animation-delay: 0ms; }
+.candle:nth-child(2)  .candle-bar { animation-delay: 30ms; }
+.candle:nth-child(3)  .candle-bar { animation-delay: 60ms; }
+.candle:nth-child(4)  .candle-bar { animation-delay: 90ms; }
+.candle:nth-child(5)  .candle-bar { animation-delay: 120ms; }
+.candle:nth-child(6)  .candle-bar { animation-delay: 150ms; }
+.candle:nth-child(7)  .candle-bar { animation-delay: 180ms; }
+.candle:nth-child(8)  .candle-bar { animation-delay: 210ms; }
+.candle:nth-child(9)  .candle-bar { animation-delay: 240ms; }
+.candle:nth-child(10) .candle-bar { animation-delay: 270ms; }
+.candle:nth-child(11) .candle-bar { animation-delay: 300ms; }
+.candle:nth-child(12) .candle-bar { animation-delay: 330ms; }
+.candle:nth-child(13) .candle-bar { animation-delay: 360ms; }
+.candle:nth-child(14) .candle-bar { animation-delay: 390ms; }
+.candle:nth-child(15) .candle-bar { animation-delay: 420ms; }
+.candle:nth-child(16) .candle-bar { animation-delay: 450ms; }
+
+@keyframes fsCandleGrow {
+    from { transform: scaleY(0); }
+    to   { transform: scaleY(1); }
+}
+
+/* Список истории плавно появляется при поиске/фильтре */
+#historyList.animate-in {
+    animation: fsListIn 200ms ease;
+}
+@keyframes fsListIn {
+    from { opacity: 0.3; }
+    to   { opacity: 1; }
+}

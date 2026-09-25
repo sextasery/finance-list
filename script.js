@@ -370,6 +370,8 @@ var historyDateTo = null;
 
 var selectionMode = false;
 var selectedIds = [];
+var _flashId = null;       /* ID записи, которую подсветить после рендера */
+var _animateList = false;  /* Пометить список как «только что обновлённый» */
 
 /* =========================================================================
    PERSISTENCE
@@ -467,16 +469,72 @@ function saveState() {
 /* =========================================================================
    ХЕДЕР
    ========================================================================= */
+/* Плавный перекат числа */
+var _numAnimFrames = {};
+
+function animateNumber(el, toValue, duration) {
+    if (!el) return;
+    duration = duration || 300;
+
+    var key = el.id || 'default';
+    if (_numAnimFrames[key]) {
+        cancelAnimationFrame(_numAnimFrames[key]);
+        _numAnimFrames[key] = null;
+    }
+
+    var fromValue = parseFloat(el.getAttribute('data-value')) || 0;
+    if (Math.abs(fromValue - toValue) < 1) {
+        el.textContent = fmt(toValue);
+        el.setAttribute('data-value', String(toValue));
+        return;
+    }
+
+    var start = performance.now();
+
+    function step(now) {
+        var t = Math.min(1, (now - start) / duration);
+        /* Ease-out cubic — мягкое затухание */
+        var eased = 1 - Math.pow(1 - t, 3);
+        var current = fromValue + (toValue - fromValue) * eased;
+        el.textContent = fmt(Math.round(current));
+
+        if (t < 1) {
+            _numAnimFrames[key] = requestAnimationFrame(step);
+        } else {
+            el.textContent = fmt(toValue);
+            el.setAttribute('data-value', String(toValue));
+            _numAnimFrames[key] = null;
+        }
+    }
+
+    _numAnimFrames[key] = requestAnimationFrame(step);
+}
+
 function renderHeader() {
-    document.getElementById('totalBalance').textContent = fmt(state.balance);
+    var balEl = document.getElementById('totalBalance');
+    var debtEl = document.getElementById('totalDebt');
+    var planEl = document.getElementById('totalPlans');
 
     var debtSum = 0;
     for (var i = 0; i < state.debts.length; i++) debtSum += state.debts[i].amount;
-    document.getElementById('totalDebt').textContent = fmt(debtSum);
 
     var planSum = 0;
     for (var j = 0; j < state.plans.length; j++) planSum += state.plans[j].current;
-    document.getElementById('totalPlans').textContent = fmt(planSum);
+
+    /* При первой загрузке — сразу, без анимации */
+    if (balEl.getAttribute('data-value') === null) {
+        balEl.textContent = fmt(state.balance);
+        balEl.setAttribute('data-value', String(state.balance));
+        debtEl.textContent = fmt(debtSum);
+        debtEl.setAttribute('data-value', String(debtSum));
+        planEl.textContent = fmt(planSum);
+        planEl.setAttribute('data-value', String(planSum));
+        return;
+    }
+
+    animateNumber(balEl, state.balance, 350);
+    animateNumber(debtEl, debtSum, 350);
+    animateNumber(planEl, planSum, 350);
 }
 
 /* =========================================================================
@@ -508,9 +566,16 @@ function switchTab(tab) {
     else if (tab === 'analytics') renderAnalytics(c);
     else if (tab === 'settings')  renderSettings(c);
 
-    c.scrollTop = 0;
+        c.scrollTop = 0;
     hideChartTooltip();
+
+    /* Каскадное появление карточек */
+    c.classList.remove('tab-enter');
+    void c.offsetWidth; /* forced reflow — перезапускает анимацию */
+    c.classList.add('tab-enter');
+    setTimeout(function () { c.classList.remove('tab-enter'); }, 700);
 }
+
 
 /* =========================================================================
    FILTERS BAR
@@ -538,6 +603,7 @@ function hideFiltersBar() {
 function setHistoryFilter(f) {
     historyFilter = f;
     historyViewCount = 50;
+    _animateList = true;
     renderFiltersBar();
     renderBalance(document.getElementById('mainContent'));
 }
@@ -737,7 +803,31 @@ function renderBalance(c) {
     '</div>';
 
     c.innerHTML = formHtml + buildBudgetsBlockHtml() + historyHtml;
-    c.scrollTop = savedScroll;
+c.scrollTop = savedScroll;
+
+/* Плавное появление списка при поиске/фильтре */
+if (_animateList) {
+    var listEl = document.getElementById('historyList');
+    if (listEl) listEl.classList.add('animate-in');
+    _animateList = false;
+}
+
+/* Вспышка новой записи */
+if (_flashId) {
+    var items = c.querySelectorAll('[data-id]');
+    for (var fi = 0; fi < items.length; fi++) {
+        if (items[fi].getAttribute('data-id') === _flashId) {
+            var isIncome = items[fi].querySelector('.item-amount') &&
+                items[fi].querySelector('.item-amount').textContent.indexOf('+') === 0;
+            items[fi].classList.add('flash-new');
+            items[fi].classList.add(isIncome ? 'flash-income' : 'flash-expense');
+            break;
+        }
+    }
+    _flashId = null;
+}
+
+var searchEl = document.getElementById('historySearch');
 
     var searchEl = document.getElementById('historySearch');
     if (searchEl) searchEl.addEventListener('input', handleHistorySearch);
@@ -755,10 +845,11 @@ function handleHistorySearch(e) {
 
     if (_searchTimer) clearTimeout(_searchTimer);
     _searchTimer = setTimeout(function () {
-        var c = document.getElementById('mainContent');
-        if (!c) return;
-        var scrollTop = c.scrollTop;
-        renderBalance(c);
+    var c = document.getElementById('mainContent');
+    if (!c) return;
+    var scrollTop = c.scrollTop;
+    _animateList = true;
+    renderBalance(c);
         c.scrollTop = scrollTop;
         var el = document.getElementById('historySearch');
         if (el) {
@@ -1373,7 +1464,8 @@ function commitOp(sign, amt, desc, categoryId, delta, timeStr) {
     };
     if (categoryId) record.categoryId = categoryId;
 
-    state.history.unshift(record);
+        state.history.unshift(record);
+    _flashId = record.id;
 
     saveState();
     hideModal();
@@ -1548,17 +1640,19 @@ function payDebt(id, amount) {
         ? DEBT_FULL_PREFIX + d.to
         : DEBT_PARTIAL_PREFIX + d.to + DEBT_PARTIAL_MARKER + fmt(d.amount) + ')';
 
-    state.history.unshift({
-        id: uid(),
-        date: new Date().toISOString(),
-        type: TYPE.TRANSFER,
-        desc: descText,
-        amount: -amt
-    });
+    var payRecordId = uid();
+state.history.unshift({
+    id: payRecordId,
+    date: new Date().toISOString(),
+    type: TYPE.TRANSFER,
+    desc: descText,
+    amount: -amt
+});
+_flashId = payRecordId;
 
-    if (isFull) {
-        state.debts = state.debts.filter(function (x) { return x.id !== id; });
-    }
+if (isFull) {
+    state.debts = state.debts.filter(function (x) { return x.id !== id; });
+}
 
     saveState();
     renderHeader();
@@ -1730,13 +1824,15 @@ function fundPlan(id) {
 
     state.balance -= amt;
     p.current += amt;
-    state.history.unshift({
-        id: uid(),
-        date: new Date().toISOString(),
-        type: TYPE.TRANSFER,
-        desc: 'Вклад в цель: ' + p.name,
-        amount: -amt
-    });
+    var fundRecordId = uid();
+state.history.unshift({
+    id: fundRecordId,
+    date: new Date().toISOString(),
+    type: TYPE.TRANSFER,
+    desc: 'Вклад в цель: ' + p.name,
+    amount: -amt
+});
+_flashId = fundRecordId;
 
     saveState();
     hideModal();
@@ -2113,23 +2209,7 @@ function showModal(html) {
     var content = document.getElementById('modalContent');
     var overlay = document.getElementById('modalOverlay');
 
-        content.innerHTML = '<button type="button" class="modal-x" data-action="close-modal" aria-label="Закрыть">✕</button>' + html;
-
-    overlay.style.display = 'block';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.right = '0';
-    overlay.style.bottom = '0';
-    overlay.style.background = 'rgba(0,0,0,0.9)';
-    overlay.style.zIndex = '100';
-    overlay.style.overflowY = 'auto';
-    overlay.style.overflowX = 'hidden';
-    overlay.style.webkitOverflowScrolling = 'touch';
-    overlay.style.padding = '16px';
-    overlay.style.paddingBottom = '260px';
-    overlay.style.touchAction = 'pan-y';
-    overlay.scrollTop = modalVisible ? overlay.scrollTop : 0;
+    content.innerHTML = '<button type="button" class="modal-x" data-action="close-modal" aria-label="Закрыть">✕</button>' + html;
 
     content.style.position = 'relative';
     content.style.paddingTop = '52px';
@@ -2139,6 +2219,10 @@ function showModal(html) {
     content.style.margin = '0 auto';
     content.style.maxWidth = '400px';
 
+    overlay.style.display = 'block';
+    overlay.classList.add('visible');
+    overlay.scrollTop = 0;
+
     modalVisible = true;
 }
 
@@ -2146,9 +2230,15 @@ function hideModal() {
     var overlay = document.getElementById('modalOverlay');
     var content = document.getElementById('modalContent');
 
-    overlay.style.display = 'none';
     overlay.classList.remove('visible');
-    content.innerHTML = '';
+
+    /* Ждём завершения CSS-анимации, потом очищаем */
+    setTimeout(function () {
+        if (!overlay.classList.contains('visible')) {
+            overlay.style.display = 'none';
+            content.innerHTML = '';
+        }
+    }, 260);
 
     modalVisible = false;
     _confirmCallback = null;
