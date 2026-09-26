@@ -75,9 +75,7 @@ var MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','ию�
 var MONTHS_FULL  = ['Январь','Февраль','Март','Апрель','Май','Июнь',
                     'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-/* =========================================================================
-   УТИЛИТЫ
-   ========================================================================= */
+/* ============ УТИЛИТЫ ============ */
 var ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 function esc(s) {
     if (s === null || s === undefined) return '';
@@ -115,9 +113,7 @@ function parseAmount(raw) {
     return (isFinite(n) && n > 0) ? n : null;
 }
 
-/* =========================================================================
-   ДАТЫ
-   ========================================================================= */
+/* ============ ДАТЫ ============ */
 function dateToParts(iso) {
     var d = new Date(iso);
     if (isNaN(d.getTime())) d = new Date();
@@ -190,9 +186,7 @@ function applyTimeToIso(iso, timeStr) {
     return d.toISOString();
 }
 
-/* =========================================================================
-   КАТЕГОРИИ
-   ========================================================================= */
+/* ============ КАТЕГОРИИ ============ */
 function getCategory(catId) {
     for (var i = 0; i < CATEGORIES.length; i++) {
         if (CATEGORIES[i].id === catId) return CATEGORIES[i];
@@ -231,9 +225,8 @@ function parseDebtReturn(desc) {
     }
     return null;
 }
-/* =========================================================================
-   БЮДЖЕТЫ — УТИЛИТЫ
-   ========================================================================= */
+
+/* ============ БЮДЖЕТЫ — УТИЛИТЫ ============ */
 function getMonthKey(iso) {
     var d = new Date(iso);
     if (isNaN(d.getTime())) return '';
@@ -342,9 +335,7 @@ function ensureBudgetsForCurrentMonth() {
     saveState();
 }
 
-/* =========================================================================
-   СОСТОЯНИЕ
-   ========================================================================= */
+/* ============ СОСТОЯНИЕ ============ */
 function emptyState() {
     return {
         version: STATE_VERSION,
@@ -352,6 +343,7 @@ function emptyState() {
         debts: [],
         plans: [],
         history: [],
+        shopping: [],
         tf: 'D1',
         budgets: [],
         budgetsCollapsed: false,
@@ -370,12 +362,14 @@ var historyDateTo = null;
 
 var selectionMode = false;
 var selectedIds = [];
-var _flashId = null;       /* ID записи, которую подсветить после рендера */
-var _animateList = false;  /* Пометить список как «только что обновлённый» */
+var _flashId = null;
+var _animateList = false;
 
-/* =========================================================================
-   PERSISTENCE
-   ========================================================================= */
+/* Покупки — выделение */
+var shoppingSelected = [];
+var shoppingFilterCategory = null;
+
+/* ============ PERSISTENCE ============ */
 var storageAvailable = true;
 try {
     var _t = '__fs_test__';
@@ -404,12 +398,13 @@ function loadState() {
 function migrate(raw) {
     if (!raw || typeof raw !== 'object') return emptyState();
     var s = emptyState();
-    s.balance = (typeof raw.balance === 'number' && isFinite(raw.balance)) ? raw.balance : 0;
-    s.debts   = Array.isArray(raw.debts)   ? raw.debts.filter(isValidDebt)      : [];
-    s.plans   = Array.isArray(raw.plans)   ? raw.plans.filter(isValidPlan)      : [];
-    s.history = Array.isArray(raw.history) ? raw.history.filter(isValidHistory) : [];
-    s.tf      = isValidTf(raw.tf) ? raw.tf : 'D1';
-    s.budgets = Array.isArray(raw.budgets) ? raw.budgets.filter(isValidBudget) : [];
+    s.balance  = (typeof raw.balance === 'number' && isFinite(raw.balance)) ? raw.balance : 0;
+    s.debts    = Array.isArray(raw.debts)    ? raw.debts.filter(isValidDebt)       : [];
+    s.plans    = Array.isArray(raw.plans)    ? raw.plans.filter(isValidPlan)       : [];
+    s.history  = Array.isArray(raw.history)  ? raw.history.filter(isValidHistory)  : [];
+    s.shopping = Array.isArray(raw.shopping) ? raw.shopping.filter(isValidShopping): [];
+    s.tf       = isValidTf(raw.tf) ? raw.tf : 'D1';
+    s.budgets  = Array.isArray(raw.budgets)  ? raw.budgets.filter(isValidBudget)   : [];
     s.budgetsCollapsed = (typeof raw.budgetsCollapsed === 'boolean') ? raw.budgetsCollapsed : false;
     s.budgetsViewMonth = (typeof raw.budgetsViewMonth === 'string') ? raw.budgetsViewMonth : null;
 
@@ -420,6 +415,13 @@ function migrate(raw) {
         if (h.type === TYPE.EXPENSE && !h.categoryId) h.categoryId = DEFAULT_CATEGORY_ID;
         if (h.type === TYPE.INCOME  && !h.categoryId) h.categoryId = DEFAULT_INCOME_CATEGORY_ID;
     }
+
+    for (var j = 0; j < s.shopping.length; j++) {
+        var it = s.shopping[j];
+        if (!it.id) it.id = uid();
+        if (!it.categoryId) it.categoryId = DEFAULT_CATEGORY_ID;
+    }
+
     return s;
 }
 
@@ -452,6 +454,10 @@ function isValidBudget(b) {
         && typeof b.month === 'string' && /^\d{4}-\d{2}$/.test(b.month);
 }
 
+function isValidShopping(it) {
+    return it && typeof it.name === 'string' && it.name.length > 0 && it.id != null;
+}
+
 function saveState() {
     if (state.history.length > HISTORY_LIMIT) state.history.length = HISTORY_LIMIT;
     if (!storageAvailable) { renderHeader(); return; }
@@ -466,10 +472,7 @@ function saveState() {
     renderHeader();
 }
 
-/* =========================================================================
-   ХЕДЕР
-   ========================================================================= */
-/* Плавный перекат числа */
+/* ============ ХЕДЕР ============ */
 var _numAnimFrames = {};
 
 function animateNumber(el, toValue, duration) {
@@ -493,7 +496,6 @@ function animateNumber(el, toValue, duration) {
 
     function step(now) {
         var t = Math.min(1, (now - start) / duration);
-        /* Ease-out cubic — мягкое затухание */
         var eased = 1 - Math.pow(1 - t, 3);
         var current = fromValue + (toValue - fromValue) * eased;
         el.textContent = fmt(Math.round(current));
@@ -521,7 +523,6 @@ function renderHeader() {
     var planSum = 0;
     for (var j = 0; j < state.plans.length; j++) planSum += state.plans[j].current;
 
-    /* При первой загрузке — сразу, без анимации */
     if (balEl.getAttribute('data-value') === null) {
         balEl.textContent = fmt(state.balance);
         balEl.setAttribute('data-value', String(state.balance));
@@ -536,10 +537,7 @@ function renderHeader() {
     animateNumber(debtEl, debtSum, 350);
     animateNumber(planEl, planSum, 350);
 }
-
-/* =========================================================================
-   TABS
-   ========================================================================= */
+/* ============ TABS ============ */
 function switchTab(tab) {
     currentTab = tab;
 
@@ -547,6 +545,7 @@ function switchTab(tab) {
         selectionMode = false;
         selectedIds = [];
     }
+    shoppingSelected = [];
 
     var tabs = document.querySelectorAll('.tab-btn');
     for (var i = 0; i < tabs.length; i++) {
@@ -563,23 +562,20 @@ function switchTab(tab) {
     if (tab === 'balance')        renderBalance(c);
     else if (tab === 'debts')     renderDebts(c);
     else if (tab === 'plans')     renderPlans(c);
+    else if (tab === 'shopping')  renderShopping(c);
     else if (tab === 'analytics') renderAnalytics(c);
     else if (tab === 'settings')  renderSettings(c);
 
-        c.scrollTop = 0;
+    c.scrollTop = 0;
     hideChartTooltip();
 
-    /* Каскадное появление карточек */
     c.classList.remove('tab-enter');
-    void c.offsetWidth; /* forced reflow — перезапускает анимацию */
+    void c.offsetWidth;
     c.classList.add('tab-enter');
     setTimeout(function () { c.classList.remove('tab-enter'); }, 700);
 }
 
-
-/* =========================================================================
-   FILTERS BAR
-   ========================================================================= */
+/* ============ FILTERS BAR ============ */
 function renderFiltersBar() {
     var bar = document.getElementById('filtersBar');
     if (!bar) return;
@@ -608,9 +604,7 @@ function setHistoryFilter(f) {
     renderBalance(document.getElementById('mainContent'));
 }
 
-/* =========================================================================
-   ФИЛЬТРАЦИЯ И СОРТИРОВКА ИСТОРИИ
-   ========================================================================= */
+/* ============ ФИЛЬТРАЦИЯ ИСТОРИИ ============ */
 function getFilteredHistory() {
     var filtered = state.history;
 
@@ -654,9 +648,7 @@ function getFilteredHistory() {
     return filtered;
 }
 
-/* =========================================================================
-   ОТРИСОВКА ЗАПИСИ ИСТОРИИ
-   ========================================================================= */
+/* ============ ОТРИСОВКА ЗАПИСИ ИСТОРИИ ============ */
 function renderHistoryItem(h) {
     var isPos = h.amount > 0;
     var color = isPos ? 'var(--green)' : 'var(--red)';
@@ -707,201 +699,8 @@ function renderHistoryItem(h) {
         '</div>' +
     '</div>';
 }
-/* =========================================================================
-   TAB: BALANCE
-   ========================================================================= */
-function renderBalance(c) {
-    var savedScroll = c.scrollTop;
-    var formHtml =
-        '<div class="card">' +
-            '<div class="card-title" style="margin-bottom:10px">Операция с остатком</div>' +
-            '<input type="text" id="opAmount" placeholder="Сумма" inputmode="decimal" autocomplete="off">' +
-            '<input type="text" id="opDesc" placeholder="Название" autocomplete="off">' +
-            '<input type="text" id="opTime" placeholder="Время (ЧЧ:ММ)" autocomplete="off" value="' + formatTimeFromIso(new Date().toISOString()) + '">' +
-            '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">' +
-                '<button type="button" class="btn-full btn-primary" data-action="op" data-sign="1">+ Пополнить</button>' +
-                '<button type="button" class="btn-full btn-danger"  data-action="op" data-sign="-1">− Списать</button>' +
-            '</div>' +
-        '</div>';
 
-    var allFiltered = getFilteredHistory();
-    var totalFiltered = allFiltered.length;
-    var visibleCount = Math.min(historyViewCount, totalFiltered);
-
-    var filterActive = historyCatFilter.length > 0;
-    var hasSearchValue = historySearch.length > 0;
-    var hasDateFilter = !!(historyDateFrom && historyDateTo);
-    var toolsHtml =
-        '<div class="history-tools">' +
-            '<div class="history-search-wrap' + (hasSearchValue ? ' has-value' : '') + '">' +
-                '<input type="text" class="history-search" id="historySearch" ' +
-                    'placeholder="Поиск по истории" autocomplete="off" value="' + esc(historySearch) + '">' +
-                '<button type="button" class="history-search-clear" ' +
-                    'data-action="clear-history-search" aria-label="Очистить">✕</button>' +
-            '</div>' +
-        '</div>' +
-        '<div class="history-tools" style="margin-top:-4px;">' +
-            '<button type="button" class="history-cat-btn ' + (filterActive ? 'active' : '') + '" ' +
-                'data-action="open-cat-filter">' +
-                '🏷 ' + (filterActive ? 'Категории: ' + historyCatFilter.length : 'Категории') +
-            '</button>' +
-            '<button type="button" class="history-cat-btn ' + (hasDateFilter ? 'active' : '') + '" ' +
-                'data-action="hist-date-open">' +
-                '📅 ' + (hasDateFilter ? 'Даты выбраны' : 'Даты') +
-            '</button>' +
-        '</div>';
-
-    var selectionBarHtml = '';
-    if (selectionMode && selectedIds.length > 0) {
-        selectionBarHtml =
-            '<div class="selection-bar">' +
-                '<span class="sb-count">Выбрано: ' + selectedIds.length + '</span>' +
-                '<button type="button" data-action="bulk-edit-category">🏷️ Категория</button>' +
-                '<button type="button" data-action="bulk-edit-date">📅 Дата</button>' +
-                '<button type="button" data-action="bulk-edit-name">✏️ Название</button>' +
-                '<button type="button" class="danger" data-action="bulk-delete">🗑️ Удалить</button>' +
-                '<button type="button" data-action="exit-selection">✕ Отмена</button>' +
-            '</div>';
-    }
-
-    var historyHtml = '<div class="card"><div class="card-title history-card-title">История операций</div>' + toolsHtml + selectionBarHtml;
-
-    if (totalFiltered === 0) {
-        var emptyMsg = (historySearch.trim() || filterActive || hasDateFilter)
-            ? 'Ничего не найдено'
-            : 'Нет записей<br>Начни с пополнения баланса';
-        historyHtml += '<div class="empty-state">' + emptyMsg + '</div>';
-    } else {
-        historyHtml += '<div id="historyList">';
-        for (var k = 0; k < visibleCount; k++) {
-            historyHtml += renderHistoryItem(allFiltered[k]);
-        }
-        historyHtml += '</div>';
-
-        if (totalFiltered > visibleCount) {
-            historyHtml += '<div class="history-load-more" id="historyLoadMore">Показано ' +
-                visibleCount + ' из ' + totalFiltered + ' — прокрути вниз</div>';
-        }
-    }
-
-    var now = new Date();
-    var startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    var income = 0, expense = 0;
-    for (var m = 0; m < state.history.length; m++) {
-        var rec = state.history[m];
-        var d = new Date(rec.date);
-        if (isNaN(d.getTime()) || d < startOfMonth) continue;
-        if (rec.type === TYPE.INCOME) income += rec.amount;
-        else if (rec.type === TYPE.EXPENSE) expense += Math.abs(rec.amount);
-    }
-
-    historyHtml +=
-        '<div class="summary-box">' +
-            '<span>Доходы за месяц: <span class="summary-val" style="color:var(--green)">' + fmt(income) + '</span></span>' +
-            '<span>Расходы за месяц: <span class="summary-val" style="color:var(--red)">' + fmt(expense) + '</span></span>' +
-        '</div>' +
-    '</div>';
-
-    c.innerHTML = formHtml + buildBudgetsBlockHtml() + historyHtml;
-c.scrollTop = savedScroll;
-
-/* Плавное появление списка при поиске/фильтре */
-if (_animateList) {
-    var listEl = document.getElementById('historyList');
-    if (listEl) listEl.classList.add('animate-in');
-    _animateList = false;
-}
-
-/* Вспышка новой записи */
-if (_flashId) {
-    var items = c.querySelectorAll('[data-id]');
-    for (var fi = 0; fi < items.length; fi++) {
-        if (items[fi].getAttribute('data-id') === _flashId) {
-            var isIncome = items[fi].querySelector('.item-amount') &&
-                items[fi].querySelector('.item-amount').textContent.indexOf('+') === 0;
-            items[fi].classList.add('flash-new');
-            items[fi].classList.add(isIncome ? 'flash-income' : 'flash-expense');
-            break;
-        }
-    }
-    _flashId = null;
-}
-
-var searchEl = document.getElementById('historySearch');
-
-    var searchEl = document.getElementById('historySearch');
-    if (searchEl) searchEl.addEventListener('input', handleHistorySearch);
-
-    attachLongPressHandlers();
-}
-
-/* =========================================================================
-   ПОИСК
-   ========================================================================= */
-var _searchTimer = null;
-function handleHistorySearch(e) {
-    historySearch = e.target.value;
-    historyViewCount = 50;
-
-    if (_searchTimer) clearTimeout(_searchTimer);
-    _searchTimer = setTimeout(function () {
-    var c = document.getElementById('mainContent');
-    if (!c) return;
-    var scrollTop = c.scrollTop;
-    _animateList = true;
-    renderBalance(c);
-        c.scrollTop = scrollTop;
-        var el = document.getElementById('historySearch');
-        if (el) {
-            el.focus();
-            var len = el.value.length;
-            try { el.setSelectionRange(len, len); } catch (_) {}
-        }
-    }, 200);
-}
-
-/* =========================================================================
-   ПАГИНАЦИЯ
-   ========================================================================= */
-function handleContentScroll() {
-    if (currentTab !== 'balance') return;
-    var el = document.getElementById('mainContent');
-    if (!el) return;
-    if (el.scrollTop + el.clientHeight < el.scrollHeight - 200) return;
-
-    var all = getFilteredHistory();
-    if (historyViewCount >= all.length) return;
-
-    var list = document.getElementById('historyList');
-    var loadMore = document.getElementById('historyLoadMore');
-    if (!list) return;
-
-    var start = historyViewCount;
-    var next = Math.min(historyViewCount + 50, all.length);
-
-    var appendHtml = '';
-    for (var i = start; i < next; i++) {
-        appendHtml += renderHistoryItem(all[i]);
-    }
-
-    if (loadMore) {
-        loadMore.insertAdjacentHTML('beforebegin', appendHtml);
-        if (next >= all.length) {
-            loadMore.parentNode.removeChild(loadMore);
-        } else {
-            loadMore.textContent = 'Показано ' + next + ' из ' + all.length + ' — прокрути вниз';
-        }
-    } else {
-        list.insertAdjacentHTML('beforeend', appendHtml);
-    }
-
-    historyViewCount = next;
-    attachLongPressHandlers();
-}
-
-/* =========================================================================
-   ФИЛЬТР ПО КАТЕГОРИЯМ
-   ========================================================================= */
+/* ============ ФИЛЬТР ПО КАТЕГОРИЯМ ============ */
 function openCategoryFilter() {
     var html = '<h3>Фильтр по категориям</h3>' +
         '<p style="font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.4;">' +
@@ -950,6 +749,7 @@ function applyCategoryFilter() {
     }
     historyCatFilter = newFilter;
     historyViewCount = 50;
+    _animateList = true;
     hideModal();
     renderBalance(document.getElementById('mainContent'));
 }
@@ -959,9 +759,7 @@ function resetCategoryFilter() {
     for (var i = 0; i < checkboxes.length; i++) checkboxes[i].checked = false;
 }
 
-/* =========================================================================
-   ФИЛЬТР ПО ДАТАМ В ИСТОРИИ
-   ========================================================================= */
+/* ============ ФИЛЬТР ПО ДАТАМ ============ */
 function openHistoryDatePicker() {
     var fromIso = historyDateFrom || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
     var toIso   = historyDateTo   || new Date().toISOString();
@@ -1004,6 +802,7 @@ function applyHistoryDate() {
     delete _datePickerState.histFrom;
     delete _datePickerState.histTo;
 
+    _animateList = true;
     hideModal();
     renderBalance(document.getElementById('mainContent'));
 }
@@ -1014,13 +813,12 @@ function clearHistoryDate() {
     historyViewCount = 50;
     delete _datePickerState.histFrom;
     delete _datePickerState.histTo;
+    _animateList = true;
     hideModal();
     renderBalance(document.getElementById('mainContent'));
 }
 
-/* =========================================================================
-   РЕЖИМ ВЫДЕЛЕНИЯ
-   ========================================================================= */
+/* ============ РЕЖИМ ВЫДЕЛЕНИЯ ============ */
 function startSelectionMode(id) {
     if (selectionMode) return;
     selectionMode = true;
@@ -1047,7 +845,7 @@ function exitSelectionMode() {
     renderBalance(document.getElementById('mainContent'));
 }
 
-/* Long-press */
+/* ============ LONG-PRESS ============ */
 var _longPressTimer = null;
 var _longPressFired = false;
 
@@ -1092,9 +890,7 @@ function shouldBlockEditClick() {
     return false;
 }
 
-/* =========================================================================
-   СЕТКА ВЫБОРА ДАТЫ
-   ========================================================================= */
+/* ============ DATE PICKER ============ */
 var _datePickerState = {};
 
 function ensureDatePickerState(prefix, iso) {
@@ -1210,9 +1006,298 @@ function readDatePicker(prefix, sourceIso) {
 function resetDatePickerState(prefix) {
     delete _datePickerState[prefix];
 }
-/* =========================================================================
-   МАССОВЫЕ ДЕЙСТВИЯ
-   ========================================================================= */
+/* ============ TAB: BALANCE ============ */
+function renderBalance(c) {
+    var savedScroll = c.scrollTop;
+    var formHtml =
+        '<div class="card">' +
+            '<div class="card-title" style="margin-bottom:10px">Операция с остатком</div>' +
+            '<input type="text" id="opAmount" placeholder="Сумма" inputmode="decimal" autocomplete="off">' +
+            '<input type="text" id="opDesc" placeholder="Название" autocomplete="off">' +
+            '<input type="text" id="opTime" placeholder="Время (ЧЧ:ММ)" autocomplete="off" value="' + formatTimeFromIso(new Date().toISOString()) + '">' +
+            '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">' +
+                '<button type="button" class="btn-full btn-primary" data-action="op" data-sign="1">+ Пополнить</button>' +
+                '<button type="button" class="btn-full btn-danger"  data-action="op" data-sign="-1">− Списать</button>' +
+            '</div>' +
+        '</div>';
+
+    var allFiltered = getFilteredHistory();
+    var totalFiltered = allFiltered.length;
+    var visibleCount = Math.min(historyViewCount, totalFiltered);
+
+    var filterActive = historyCatFilter.length > 0;
+    var hasSearchValue = historySearch.length > 0;
+    var hasDateFilter = !!(historyDateFrom && historyDateTo);
+    var toolsHtml =
+        '<div class="history-tools">' +
+            '<div class="history-search-wrap' + (hasSearchValue ? ' has-value' : '') + '">' +
+                '<input type="text" class="history-search" id="historySearch" ' +
+                    'placeholder="Поиск по истории" autocomplete="off" value="' + esc(historySearch) + '">' +
+                '<button type="button" class="history-search-clear" ' +
+                    'data-action="clear-history-search" aria-label="Очистить">✕</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="history-tools" style="margin-top:-4px;">' +
+            '<button type="button" class="history-cat-btn ' + (filterActive ? 'active' : '') + '" ' +
+                'data-action="open-cat-filter">' +
+                '🏷 ' + (filterActive ? 'Категории: ' + historyCatFilter.length : 'Категории') +
+            '</button>' +
+            '<button type="button" class="history-cat-btn ' + (hasDateFilter ? 'active' : '') + '" ' +
+                'data-action="hist-date-open">' +
+                '📅 ' + (hasDateFilter ? 'Даты выбраны' : 'Даты') +
+            '</button>' +
+        '</div>';
+
+    var selectionBarHtml = '';
+    if (selectionMode && selectedIds.length > 0) {
+        selectionBarHtml =
+            '<div class="selection-bar">' +
+                '<span class="sb-count">Выбрано: ' + selectedIds.length + '</span>' +
+                '<button type="button" data-action="bulk-edit-category">🏷️ Категория</button>' +
+                '<button type="button" data-action="bulk-edit-date">📅 Дата</button>' +
+                '<button type="button" data-action="bulk-edit-name">✏️ Название</button>' +
+                '<button type="button" class="danger" data-action="bulk-delete">🗑️ Удалить</button>' +
+                '<button type="button" data-action="exit-selection">✕ Отмена</button>' +
+            '</div>';
+    }
+
+    var historyHtml = '<div class="card"><div class="card-title history-card-title">История операций</div>' + toolsHtml + selectionBarHtml;
+
+    if (totalFiltered === 0) {
+        var emptyMsg = (historySearch.trim() || filterActive || hasDateFilter)
+            ? 'Ничего не найдено'
+            : 'Нет записей<br>Начни с пополнения баланса';
+        historyHtml += '<div class="empty-state">' + emptyMsg + '</div>';
+    } else {
+        historyHtml += '<div id="historyList">';
+        for (var k = 0; k < visibleCount; k++) {
+            historyHtml += renderHistoryItem(allFiltered[k]);
+        }
+        historyHtml += '</div>';
+
+        if (totalFiltered > visibleCount) {
+            historyHtml += '<div class="history-load-more" id="historyLoadMore">Показано ' +
+                visibleCount + ' из ' + totalFiltered + ' — прокрути вниз</div>';
+        }
+    }
+
+    var now = new Date();
+    var startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    var income = 0, expense = 0;
+    for (var m = 0; m < state.history.length; m++) {
+        var rec = state.history[m];
+        var d = new Date(rec.date);
+        if (isNaN(d.getTime()) || d < startOfMonth) continue;
+        if (rec.type === TYPE.INCOME) income += rec.amount;
+        else if (rec.type === TYPE.EXPENSE) expense += Math.abs(rec.amount);
+    }
+
+    historyHtml +=
+        '<div class="summary-box">' +
+            '<span>Доходы за месяц: <span class="summary-val" style="color:var(--green)">' + fmt(income) + '</span></span>' +
+            '<span>Расходы за месяц: <span class="summary-val" style="color:var(--red)">' + fmt(expense) + '</span></span>' +
+        '</div>' +
+    '</div>';
+
+    c.innerHTML = formHtml + buildBudgetsBlockHtml() + historyHtml;
+    c.scrollTop = savedScroll;
+
+    if (_animateList) {
+        var listEl = document.getElementById('historyList');
+        if (listEl) listEl.classList.add('animate-in');
+        _animateList = false;
+    }
+
+    if (_flashId) {
+        var items = c.querySelectorAll('[data-id]');
+        for (var fi = 0; fi < items.length; fi++) {
+            if (items[fi].getAttribute('data-id') === _flashId) {
+                var isIncome = items[fi].querySelector('.item-amount') &&
+                    items[fi].querySelector('.item-amount').textContent.indexOf('+') === 0;
+                items[fi].classList.add('flash-new');
+                items[fi].classList.add(isIncome ? 'flash-income' : 'flash-expense');
+                break;
+            }
+        }
+        _flashId = null;
+    }
+
+    var searchEl = document.getElementById('historySearch');
+    if (searchEl) searchEl.addEventListener('input', handleHistorySearch);
+
+    attachLongPressHandlers();
+}
+
+/* ============ ПОИСК ============ */
+var _searchTimer = null;
+function handleHistorySearch(e) {
+    historySearch = e.target.value;
+    historyViewCount = 50;
+
+    if (_searchTimer) clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(function () {
+        var c = document.getElementById('mainContent');
+        if (!c) return;
+        var scrollTop = c.scrollTop;
+        _animateList = true;
+        renderBalance(c);
+        c.scrollTop = scrollTop;
+        var el = document.getElementById('historySearch');
+        if (el) {
+            el.focus();
+            var len = el.value.length;
+            try { el.setSelectionRange(len, len); } catch (_) {}
+        }
+    }, 200);
+}
+
+/* ============ ПАГИНАЦИЯ ============ */
+function handleContentScroll() {
+    if (currentTab !== 'balance') return;
+    var el = document.getElementById('mainContent');
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight < el.scrollHeight - 200) return;
+
+    var all = getFilteredHistory();
+    if (historyViewCount >= all.length) return;
+
+    var list = document.getElementById('historyList');
+    var loadMore = document.getElementById('historyLoadMore');
+    if (!list) return;
+
+    var start = historyViewCount;
+    var next = Math.min(historyViewCount + 50, all.length);
+
+    var appendHtml = '';
+    for (var i = start; i < next; i++) {
+        appendHtml += renderHistoryItem(all[i]);
+    }
+
+    if (loadMore) {
+        loadMore.insertAdjacentHTML('beforebegin', appendHtml);
+        if (next >= all.length) {
+            loadMore.parentNode.removeChild(loadMore);
+        } else {
+            loadMore.textContent = 'Показано ' + next + ' из ' + all.length + ' — прокрути вниз';
+        }
+    } else {
+        list.insertAdjacentHTML('beforeend', appendHtml);
+    }
+
+    historyViewCount = next;
+    attachLongPressHandlers();
+}
+
+/* ============ ОПЕРАЦИИ С ОСТАТКОМ ============ */
+function doOp(sign) {
+    var amtInput  = document.getElementById('opAmount');
+    var descInput = document.getElementById('opDesc');
+    var timeInput = document.getElementById('opTime');
+    if (!amtInput || !descInput) return;
+
+    var amt = parseAmount(amtInput.value);
+    if (amt === null) {
+        try { amtInput.focus(); } catch (_) {}
+        return;
+    }
+
+    var desc = descInput.value.trim();
+    var timeStr = timeInput ? timeInput.value.trim() : '';
+    var opType = (sign > 0) ? TYPE.INCOME : TYPE.EXPENSE;
+    showCategoryPicker(amt, desc, opType, null, timeStr);
+}
+
+function applyOp(sign, amt, desc, categoryId, timeStr) {
+    var delta = amt * sign;
+
+    if (sign < 0 && state.balance + delta < 0) {
+        showConfirm(
+            'Баланс станет отрицательным',
+            'После операции остаток: ' + fmt(state.balance + delta) + '. Продолжить?',
+            function () { commitOp(sign, amt, desc, categoryId, delta, timeStr); },
+            { danger: true, okLabel: 'Всё равно списать' }
+        );
+        return;
+    }
+    commitOp(sign, amt, desc, categoryId, delta, timeStr);
+}
+
+function commitOp(sign, amt, desc, categoryId, delta, timeStr) {
+    state.balance += delta;
+
+    var isoNow = new Date().toISOString();
+    if (timeStr) isoNow = applyTimeToIso(isoNow, timeStr);
+
+    var record = {
+        id: uid(),
+        date: isoNow,
+        type: sign > 0 ? TYPE.INCOME : TYPE.EXPENSE,
+        desc: desc,
+        amount: delta
+    };
+    if (categoryId) record.categoryId = categoryId;
+
+    state.history.unshift(record);
+    _flashId = record.id;
+
+    saveState();
+    hideModal();
+    renderBalance(document.getElementById('mainContent'));
+}
+
+/* ============ МОДАЛКА ВЫБОРА КАТЕГОРИИ ============ */
+var _pendingOp = null;
+
+function showCategoryPicker(amt, desc, opType, preselectId, timeStr) {
+    _pendingOp = { amt: amt, desc: desc, opType: opType, catId: preselectId || null, timeStr: timeStr || '' };
+
+    var list = getCategoriesByType(opType);
+    var isIncome = (opType === TYPE.INCOME);
+    var title = isIncome ? 'Откуда пришло?' : 'Куда потратил?';
+    var amountStr = (isIncome ? '+' : '−') + fmt(amt);
+    var amountColor = isIncome ? 'var(--green)' : 'var(--red)';
+
+    var buttonsHtml = '';
+    for (var i = 0; i < list.length; i++) {
+        var cat = list[i];
+        var active = (preselectId === cat.id) ? ' active' : '';
+        buttonsHtml +=
+            '<button type="button" class="cat-btn' + active + '" ' +
+                'data-action="cat-pick" data-id="' + esc(cat.id) + '">' +
+                '<span class="cat-icon">' + cat.icon + '</span>' +
+                '<span>' + esc(cat.name) + '</span>' +
+            '</button>';
+    }
+
+    showModal(
+        '<h3>' + title + '</h3>' +
+        '<div class="cat-amount" style="color:' + amountColor + '">' + amountStr + '</div>' +
+        (desc ? '<div class="cat-desc">' + esc(desc) + '</div>' : '') +
+        '<div class="cat-list">' + buttonsHtml + '</div>' +
+        '<button type="button" class="btn-full btn-outline" data-action="cat-cancel">Отмена</button>'
+    );
+}
+
+function pickCategory(catId) {
+    if (!_pendingOp) return;
+    var amt = _pendingOp.amt;
+    var desc = _pendingOp.desc;
+    var opType = _pendingOp.opType;
+    var timeStr = _pendingOp.timeStr || '';
+    _pendingOp = null;
+    hideModal();
+    var sign = (opType === TYPE.INCOME) ? 1 : -1;
+    applyOp(sign, amt, desc, catId, timeStr);
+}
+
+function cancelCategoryPicker() {
+    _pendingOp = null;
+    hideModal();
+    var amtInput = document.getElementById('opAmount');
+    if (amtInput) { try { amtInput.focus(); } catch (_) {} }
+}
+
+/* ============ МАССОВЫЕ ДЕЙСТВИЯ ============ */
 var _bulkState = {};
 
 function bulkEditCategory() {
@@ -1412,123 +1497,7 @@ function bulkApplyDelete() {
     hideModal();
     exitSelectionMode();
 }
-
-/* =========================================================================
-   ОПЕРАЦИИ С ОСТАТКОМ
-   ========================================================================= */
-function doOp(sign) {
-    var amtInput  = document.getElementById('opAmount');
-    var descInput = document.getElementById('opDesc');
-    var timeInput = document.getElementById('opTime');
-    if (!amtInput || !descInput) return;
-
-    var amt = parseAmount(amtInput.value);
-    if (amt === null) {
-        try { amtInput.focus(); } catch (_) {}
-        return;
-    }
-
-    var desc = descInput.value.trim();
-    var timeStr = timeInput ? timeInput.value.trim() : '';
-    var opType = (sign > 0) ? TYPE.INCOME : TYPE.EXPENSE;
-    showCategoryPicker(amt, desc, opType, null, timeStr);
-}
-
-function applyOp(sign, amt, desc, categoryId, timeStr) {
-    var delta = amt * sign;
-
-    if (sign < 0 && state.balance + delta < 0) {
-        showConfirm(
-            'Баланс станет отрицательным',
-            'После операции остаток: ' + fmt(state.balance + delta) + '. Продолжить?',
-            function () { commitOp(sign, amt, desc, categoryId, delta, timeStr); },
-            { danger: true, okLabel: 'Всё равно списать' }
-        );
-        return;
-    }
-    commitOp(sign, amt, desc, categoryId, delta, timeStr);
-}
-
-function commitOp(sign, amt, desc, categoryId, delta, timeStr) {
-    state.balance += delta;
-
-    var isoNow = new Date().toISOString();
-    if (timeStr) isoNow = applyTimeToIso(isoNow, timeStr);
-
-    var record = {
-        id: uid(),
-        date: isoNow,
-        type: sign > 0 ? TYPE.INCOME : TYPE.EXPENSE,
-        desc: desc,
-        amount: delta
-    };
-    if (categoryId) record.categoryId = categoryId;
-
-        state.history.unshift(record);
-    _flashId = record.id;
-
-    saveState();
-    hideModal();
-    renderBalance(document.getElementById('mainContent'));
-}
-
-/* =========================================================================
-   МОДАЛКА ВЫБОРА КАТЕГОРИИ
-   ========================================================================= */
-var _pendingOp = null;
-
-function showCategoryPicker(amt, desc, opType, preselectId, timeStr) {
-    _pendingOp = { amt: amt, desc: desc, opType: opType, catId: preselectId || null, timeStr: timeStr || '' };
-
-    var list = getCategoriesByType(opType);
-    var isIncome = (opType === TYPE.INCOME);
-    var title = isIncome ? 'Откуда пришло?' : 'Куда потратил?';
-    var amountStr = (isIncome ? '+' : '−') + fmt(amt);
-    var amountColor = isIncome ? 'var(--green)' : 'var(--red)';
-
-    var buttonsHtml = '';
-    for (var i = 0; i < list.length; i++) {
-        var cat = list[i];
-        var active = (preselectId === cat.id) ? ' active' : '';
-        buttonsHtml +=
-            '<button type="button" class="cat-btn' + active + '" ' +
-                'data-action="cat-pick" data-id="' + esc(cat.id) + '">' +
-                '<span class="cat-icon">' + cat.icon + '</span>' +
-                '<span>' + esc(cat.name) + '</span>' +
-            '</button>';
-    }
-
-    showModal(
-        '<h3>' + title + '</h3>' +
-        '<div class="cat-amount" style="color:' + amountColor + '">' + amountStr + '</div>' +
-        (desc ? '<div class="cat-desc">' + esc(desc) + '</div>' : '') +
-        '<div class="cat-list">' + buttonsHtml + '</div>' +
-        '<button type="button" class="btn-full btn-outline" data-action="cat-cancel">Отмена</button>'
-    );
-}
-
-function pickCategory(catId) {
-    if (!_pendingOp) return;
-    var amt = _pendingOp.amt;
-    var desc = _pendingOp.desc;
-    var opType = _pendingOp.opType;
-    var timeStr = _pendingOp.timeStr || '';
-    _pendingOp = null;
-    hideModal();
-    var sign = (opType === TYPE.INCOME) ? 1 : -1;
-    applyOp(sign, amt, desc, catId, timeStr);
-}
-
-function cancelCategoryPicker() {
-    _pendingOp = null;
-    hideModal();
-    var amtInput = document.getElementById('opAmount');
-    if (amtInput) { try { amtInput.focus(); } catch (_) {} }
-}
-
-/* =========================================================================
-   TAB: DEBTS
-   ========================================================================= */
+/* ============ TAB: DEBTS ============ */
 function renderDebts(c) {
     var html =
         '<div class="card">' +
@@ -1641,18 +1610,18 @@ function payDebt(id, amount) {
         : DEBT_PARTIAL_PREFIX + d.to + DEBT_PARTIAL_MARKER + fmt(d.amount) + ')';
 
     var payRecordId = uid();
-state.history.unshift({
-    id: payRecordId,
-    date: new Date().toISOString(),
-    type: TYPE.TRANSFER,
-    desc: descText,
-    amount: -amt
-});
-_flashId = payRecordId;
+    state.history.unshift({
+        id: payRecordId,
+        date: new Date().toISOString(),
+        type: TYPE.TRANSFER,
+        desc: descText,
+        amount: -amt
+    });
+    _flashId = payRecordId;
 
-if (isFull) {
-    state.debts = state.debts.filter(function (x) { return x.id !== id; });
-}
+    if (isFull) {
+        state.debts = state.debts.filter(function (x) { return x.id !== id; });
+    }
 
     saveState();
     renderHeader();
@@ -1674,10 +1643,7 @@ function delDebt(id) {
     );
 }
 
-/* =========================================================================
-   TAB: PLANS
-   ========================================================================= */
-
+/* ============ TAB: PLANS ============ */
 function renderPlans(c) {
     var html =
         '<div class="card">' +
@@ -1824,15 +1790,16 @@ function fundPlan(id) {
 
     state.balance -= amt;
     p.current += amt;
+
     var fundRecordId = uid();
-state.history.unshift({
-    id: fundRecordId,
-    date: new Date().toISOString(),
-    type: TYPE.TRANSFER,
-    desc: 'Вклад в цель: ' + p.name,
-    amount: -amt
-});
-_flashId = fundRecordId;
+    state.history.unshift({
+        id: fundRecordId,
+        date: new Date().toISOString(),
+        type: TYPE.TRANSFER,
+        desc: 'Вклад в цель: ' + p.name,
+        amount: -amt
+    });
+    _flashId = fundRecordId;
 
     saveState();
     hideModal();
@@ -1873,18 +1840,433 @@ function delPlan(id) {
         },
         { danger: true, okLabel: 'Удалить' }
     );
+}/* ============ TAB: SHOPPING ============ */
+function renderShopping(c) {
+    var savedScroll = c.scrollTop;
+
+    var html =
+        '<div class="card">' +
+            '<div class="card-header">' +
+                '<div class="card-title">Список покупок</div>' +
+                '<button type="button" class="btn-icon" data-action="add-shopping" aria-label="Добавить покупку">+</button>' +
+            '</div>';
+
+    if (state.shopping.length === 0) {
+        html += '<div class="empty-state">Список пуст<br>Добавь что-нибудь купить</div>';
+    } else {
+        var anySelected = shoppingSelected.length > 0;
+        var selectedCategory = null;
+
+        if (anySelected) {
+            var firstItem = state.shopping.filter(function (it) {
+                return it.id === shoppingSelected[0];
+            })[0];
+            if (firstItem) selectedCategory = firstItem.categoryId;
+        }
+
+        for (var i = 0; i < state.shopping.length; i++) {
+            var it = state.shopping[i];
+            var isChecked = shoppingSelected.indexOf(it.id) !== -1;
+            var isBlocked = anySelected && !isChecked && it.categoryId !== selectedCategory;
+            var cat = getCategoryAny(it.categoryId) || getCategory(DEFAULT_CATEGORY_ID);
+
+            var badgeHtml = cat
+                ? '<span class="cat-badge ' + cat.cssClass + '">' + cat.icon + ' ' + esc(cat.name) + '</span>'
+                : '';
+
+            var dateHtml = it.dateIso
+                ? '<span class="shopping-date">' + formatDate(it.dateIso) + '</span>'
+                : '';
+
+            html +=
+                '<div class="shopping-item' +
+                    (isChecked ? ' checked' : '') +
+                    (isBlocked ? ' blocked' : '') +
+                    '" data-action="shopping-toggle" data-id="' + esc(it.id) + '">' +
+                    '<div class="shopping-checkbox">✓</div>' +
+                    '<div class="shopping-name">' + esc(it.name) + badgeHtml + '</div>' +
+                    dateHtml +
+                    '<button type="button" class="shopping-del" ' +
+                        'data-action="del-shopping" data-id="' + esc(it.id) + '" ' +
+                        'aria-label="Удалить">✕</button>' +
+                '</div>';
+        }
+    }
+
+    html += '</div>';
+
+    /* Панель действий с выделенными */
+    if (shoppingSelected.length > 0) {
+        var totalCount = shoppingSelected.length;
+        html +=
+            '<div class="shopping-bar visible" id="shoppingBar">' +
+                '<div class="ssb-info">Выбрано: <b>' + totalCount + '</b></div>' +
+                '<button type="button" class="shopping-convert-btn" data-action="shopping-convert">Создать операцию</button>' +
+                '<button type="button" class="history-cat-btn" data-action="shopping-deselect">Снять</button>' +
+            '</div>';
+    }
+
+    c.innerHTML = html;
+    c.scrollTop = savedScroll;
 }
 
-/* =========================================================================
-   РЕДАКТИРОВАНИЕ ОПЕРАЦИИ ИЗ ИСТОРИИ
-   ========================================================================= */
+/* Отметить/снять галочку у пункта */
+function toggleShoppingItem(id) {
+    var item = null;
+    for (var i = 0; i < state.shopping.length; i++) {
+        if (state.shopping[i].id === id) { item = state.shopping[i]; break; }
+    }
+    if (!item) return;
+
+    var idx = shoppingSelected.indexOf(id);
+
+    /* Снимаем — можно всегда */
+    if (idx !== -1) {
+        shoppingSelected.splice(idx, 1);
+        renderShopping(document.getElementById('mainContent'));
+        return;
+    }
+
+    /* Ставим — проверяем категорию */
+    if (shoppingSelected.length > 0) {
+        var firstItem = state.shopping.filter(function (it) {
+            return it.id === shoppingSelected[0];
+        })[0];
+        if (firstItem && firstItem.categoryId !== item.categoryId) {
+            /* Отказ: разные категории */
+            var main = document.getElementById('mainContent');
+            if (main) {
+                var el = main.querySelector('[data-id="' + id + '"]');
+                if (el) {
+                    el.classList.add('flash-new', 'flash-expense');
+                    setTimeout(function () {
+                        el.classList.remove('flash-new', 'flash-expense');
+                    }, 900);
+                }
+            }
+            return;
+        }
+    }
+
+    shoppingSelected.push(id);
+    renderShopping(document.getElementById('mainContent'));
+}
+
+function shoppingDeselect() {
+    shoppingSelected = [];
+    renderShopping(document.getElementById('mainContent'));
+}
+
+/* Добавить / изменить пункт списка */
+function showAddShopping(existingId) {
+    var it = (existingId != null) ? state.shopping.filter(function (x) { return x.id === existingId; })[0] : null;
+
+    var currentCat = it ? it.categoryId : null;
+    var catHtml = '<div class="field-label">Категория</div>' +
+        '<div class="cat-list" style="margin-bottom:12px;">';
+    for (var i = 0; i < CATEGORIES.length; i++) {
+        var cat = CATEGORIES[i];
+        var active = (currentCat === cat.id) ? ' active' : '';
+        catHtml +=
+            '<button type="button" class="cat-btn' + active + '" ' +
+                'data-action="shopping-pick-cat" data-id="' + esc(cat.id) + '">' +
+                '<span class="cat-icon">' + cat.icon + '</span>' +
+                '<span>' + esc(cat.name) + '</span>' +
+            '</button>';
+    }
+    catHtml += '</div>';
+
+    resetDatePickerState('shop');
+    var dateIso = it && it.dateIso ? it.dateIso : null;
+    var dateHtml = '';
+    if (dateIso) {
+        dateHtml = '<div class="field-label">Дата покупки</div>' +
+            buildDatePickerHtml('shop', dateIso);
+    }
+
+    showModal(
+        '<h3>' + (it ? 'Изменить покупку' : 'Новая покупка') + '</h3>' +
+        '<input type="text" id="shopName" placeholder="Что купить" autocomplete="off" value="' + esc(it ? it.name : '') + '">' +
+        catHtml +
+        (dateIso ? dateHtml : '') +
+        '<label class="checkbox-row" style="margin-top:8px;">' +
+            '<input type="checkbox" id="shopHasDate"' + (dateIso ? ' checked' : '') + '>' +
+            '<span class="cb-label">Указать дату покупки' +
+                '<span class="cb-hint">Поможет вспомнить, когда это нужно</span>' +
+            '</span>' +
+        '</label>' +
+        '<button type="button" class="btn-full btn-primary" data-action="save-shopping" data-id="' +
+            (existingId != null ? esc(existingId) : '') + '">' +
+            (it ? 'Сохранить' : 'Добавить') +
+        '</button>' +
+        '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>'
+    );
+
+    /* Чекбокс даты — включаем/выключаем поле */
+    var checkbox = document.getElementById('shopHasDate');
+    if (checkbox) {
+        checkbox.addEventListener('change', function () {
+            var nameEl = document.getElementById('shopName');
+            var name = nameEl ? nameEl.value : '';
+            var selectedCat = null;
+            /* Найдём активную категорию */
+            var activeCat = document.querySelector('.cat-btn.active');
+            if (activeCat) selectedCat = activeCat.getAttribute('data-id');
+
+            /* Запоминаем состояние */
+            _shopTempState = {
+                name: name,
+                catId: selectedCat,
+                hasDate: checkbox.checked,
+                dateIso: checkbox.checked ? new Date().toISOString() : null
+            };
+
+            showAddShoppingWithState(existingId != null ? existingId : null);
+        });
+    }
+}
+
+/* Временное состояние модалки — чтобы не терять ввод при переключении чекбокса даты */
+var _shopTempState = null;
+
+function showAddShoppingWithState(existingId) {
+    var it = (existingId != null) ? state.shopping.filter(function (x) { return x.id === existingId; })[0] : null;
+
+    var name = _shopTempState && _shopTempState.name !== undefined
+        ? _shopTempState.name
+        : (it ? it.name : '');
+    var catId = _shopTempState && _shopTempState.catId
+        ? _shopTempState.catId
+        : (it ? it.categoryId : null);
+    var hasDate = _shopTempState && _shopTempState.hasDate
+        ? _shopTempState.hasDate
+        : !!(it && it.dateIso);
+    var dateIso = _shopTempState && _shopTempState.dateIso
+        ? _shopTempState.dateIso
+        : (it && it.dateIso ? it.dateIso : new Date().toISOString());
+
+    var catHtml = '<div class="field-label">Категория</div>' +
+        '<div class="cat-list" style="margin-bottom:12px;">';
+    for (var i = 0; i < CATEGORIES.length; i++) {
+        var cat = CATEGORIES[i];
+        var active = (catId === cat.id) ? ' active' : '';
+        catHtml +=
+            '<button type="button" class="cat-btn' + active + '" ' +
+                'data-action="shopping-pick-cat" data-id="' + esc(cat.id) + '">' +
+                '<span class="cat-icon">' + cat.icon + '</span>' +
+                '<span>' + esc(cat.name) + '</span>' +
+            '</button>';
+    }
+    catHtml += '</div>';
+
+    resetDatePickerState('shop');
+    var dateHtml = '';
+    if (hasDate) {
+        ensureDatePickerState('shop', dateIso);
+        dateHtml = '<div class="field-label">Дата покупки</div>' +
+            buildDatePickerHtml('shop', dateIso);
+    }
+
+    showModal(
+        '<h3>' + (it ? 'Изменить покупку' : 'Новая покупка') + '</h3>' +
+        '<input type="text" id="shopName" placeholder="Что купить" autocomplete="off" value="' + esc(name) + '">' +
+        catHtml +
+        dateHtml +
+        '<label class="checkbox-row" style="margin-top:8px;">' +
+            '<input type="checkbox" id="shopHasDate"' + (hasDate ? ' checked' : '') + '>' +
+            '<span class="cb-label">Указать дату покупки' +
+                '<span class="cb-hint">Поможет вспомнить, когда это нужно</span>' +
+            '</span>' +
+        '</label>' +
+        '<button type="button" class="btn-full btn-primary" data-action="save-shopping" data-id="' +
+            (existingId != null ? esc(existingId) : '') + '">' +
+            (it ? 'Сохранить' : 'Добавить') +
+        '</button>' +
+        '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>'
+    );
+
+    var checkbox = document.getElementById('shopHasDate');
+    if (checkbox) {
+        checkbox.addEventListener('change', function () {
+            var nameEl = document.getElementById('shopName');
+            var name2 = nameEl ? nameEl.value : '';
+            var activeCat = document.querySelector('.cat-btn.active');
+            var selCat = activeCat ? activeCat.getAttribute('data-id') : null;
+
+            _shopTempState = {
+                name: name2,
+                catId: selCat,
+                hasDate: checkbox.checked,
+                dateIso: checkbox.checked ? new Date().toISOString() : null
+            };
+            showAddShoppingWithState(existingId != null ? existingId : null);
+        });
+    }
+}
+
+function shoppingPickCat(catId) {
+    var nameEl = document.getElementById('shopName');
+    var name = nameEl ? nameEl.value : '';
+    var checkbox = document.getElementById('shopHasDate');
+
+    _shopTempState = {
+        name: name,
+        catId: catId,
+        hasDate: !!(checkbox && checkbox.checked),
+        dateIso: checkbox && checkbox.checked ? new Date().toISOString() : null
+    };
+    showAddShoppingWithState(null);
+}
+
+function saveShopping(id) {
+    var nameEl = document.getElementById('shopName');
+    var name = nameEl ? nameEl.value.trim() : '';
+    if (!name) return;
+
+    var activeCat = document.querySelector('.cat-btn.active');
+    var catId = activeCat ? activeCat.getAttribute('data-id') : DEFAULT_CATEGORY_ID;
+
+    var checkbox = document.getElementById('shopHasDate');
+    var hasDate = !!(checkbox && checkbox.checked);
+
+    var dateIso = null;
+    if (hasDate) {
+        dateIso = readDatePicker('shop', new Date().toISOString());
+    }
+
+    if (id) {
+        var found = null;
+        for (var i = 0; i < state.shopping.length; i++) {
+            if (state.shopping[i].id === id) { found = state.shopping[i]; break; }
+        }
+        if (found) {
+            found.name = name;
+            found.categoryId = catId;
+            found.dateIso = dateIso;
+        }
+    } else {
+        state.shopping.push({
+            id: uid(),
+            name: name,
+            categoryId: catId,
+            dateIso: dateIso
+        });
+    }
+
+    _shopTempState = null;
+    saveState();
+    hideModal();
+    renderShopping(document.getElementById('mainContent'));
+}
+
+function delShopping(id) {
+    showConfirm(
+        'Удалить покупку?',
+        'Пункт исчезнет из списка.',
+        function () {
+            state.shopping = state.shopping.filter(function (x) { return x.id !== id; });
+            shoppingSelected = shoppingSelected.filter(function (x) { return x !== id; });
+            saveState();
+            renderShopping(document.getElementById('mainContent'));
+        },
+        { danger: true, okLabel: 'Удалить' }
+    );
+}
+
+/* Превратить выбранные в операцию */
+function shoppingConvert() {
+    if (shoppingSelected.length === 0) return;
+
+    var items = state.shopping.filter(function (it) {
+        return shoppingSelected.indexOf(it.id) !== -1;
+    });
+    if (items.length === 0) return;
+
+    var catId = items[0].categoryId;
+    var cat = getCategoryAny(catId) || getCategory(DEFAULT_CATEGORY_ID);
+    var names = items.map(function (it) { return it.name; }).join(', ');
+
+    /* Если у всех выбранных есть дата — берём самую раннюю */
+    var dateIso = new Date().toISOString();
+    var dates = items.map(function (it) { return it.dateIso; }).filter(function (d) { return !!d; });
+    if (dates.length > 0) {
+        dates.sort();
+        dateIso = dates[0];
+    }
+
+    showModal(
+        '<h3>Создать операцию</h3>' +
+        '<div class="cat-desc" style="margin-bottom:14px;">' + esc(names) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">' +
+            '<span style="width:38px;height:38px;border-radius:50%;' +
+                'display:inline-flex;align-items:center;justify-content:center;' +
+                'font-size:20px;background:' + cat.color + '33;flex-shrink:0;">' +
+                cat.icon +
+            '</span>' +
+            '<span style="font-size:15px;color:var(--text);">' + esc(cat.name) + '</span>' +
+        '</div>' +
+        '<div class="field-label">Сумма</div>' +
+        '<input type="text" id="convAmount" placeholder="Сумма" inputmode="decimal" autocomplete="off">' +
+        '<div class="field-label">Время</div>' +
+        '<input type="text" id="convTime" placeholder="ЧЧ:ММ" autocomplete="off" value="' + formatTimeFromIso(new Date().toISOString()) + '">' +
+        '<button type="button" class="btn-full btn-primary" data-action="shopping-convert-confirm">Создать</button>' +
+        '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>'
+    );
+}
+
+function shoppingConvertConfirm() {
+    var amtEl = document.getElementById('convAmount');
+    var timeEl = document.getElementById('convTime');
+    var amt = amtEl ? parseAmount(amtEl.value) : null;
+    if (amt === null) {
+        if (amtEl) { try { amtEl.focus(); } catch (_) {} }
+        return;
+    }
+
+    var items = state.shopping.filter(function (it) {
+        return shoppingSelected.indexOf(it.id) !== -1;
+    });
+    if (items.length === 0) { hideModal(); return; }
+
+    var catId = items[0].categoryId;
+    var names = items.map(function (it) { return it.name; }).join(', ');
+
+    var dateIso = new Date().toISOString();
+    var dates = items.map(function (it) { return it.dateIso; }).filter(function (d) { return !!d; });
+    if (dates.length > 0) {
+        dates.sort();
+        dateIso = dates[0];
+    }
+
+    var timeStr = timeEl ? timeEl.value.trim() : '';
+    dateIso = applyTimeToIso(dateIso, timeStr);
+
+    state.balance -= amt;
+
+    var recordId = uid();
+    state.history.unshift({
+        id: recordId,
+        date: dateIso,
+        type: TYPE.EXPENSE,
+        desc: names,
+        amount: -amt,
+        categoryId: catId
+    });
+    _flashId = recordId;
+
+    /* Удаляем пункты из списка */
+    state.shopping = state.shopping.filter(function (it) {
+        return shoppingSelected.indexOf(it.id) === -1;
+    });
+    shoppingSelected = [];
+
+    saveState();
+    hideModal();
+    switchTab('balance');
+}
+/* ============ РЕДАКТИРОВАНИЕ ИСТОРИИ ============ */
 var _editState = {
-    id: null,
-    catId: null,
-    amount: '',
-    desc: '',
-    dateIso: null,
-    timeStr: ''
+    id: null, catId: null, amount: '', desc: '', dateIso: null, timeStr: ''
 };
 
 function showEditHistoryItem(id) {
@@ -1948,23 +2330,16 @@ function renderEditHistoryModal(item) {
         '<h3>Изменить операцию</h3>' +
         hint +
         '<div class="field-label">Сумма</div>' +
-        '<input type="text" id="editAmount" inputmode="decimal" autocomplete="off" ' +
-            'value="' + esc(_editState.amount) + '">' +
+        '<input type="text" id="editAmount" inputmode="decimal" autocomplete="off" value="' + esc(_editState.amount) + '">' +
         '<div class="field-label">Название</div>' +
-        '<input type="text" id="editDesc" autocomplete="off" ' +
-            'value="' + esc(_editState.desc) + '">' +
-        '<div class="field-label">Дата</div>' +
-        dateHtml +
+        '<input type="text" id="editDesc" autocomplete="off" value="' + esc(_editState.desc) + '">' +
+        '<div class="field-label">Дата</div>' + dateHtml +
         '<div class="field-label">Время</div>' +
-        '<input type="text" id="editTime" placeholder="ЧЧ:ММ" autocomplete="off" ' +
-            'value="' + esc(_editState.timeStr || '') + '">' +
+        '<input type="text" id="editTime" placeholder="ЧЧ:ММ" autocomplete="off" value="' + esc(_editState.timeStr || '') + '">' +
         catHtml +
-        '<button type="button" class="btn-full btn-primary" ' +
-            'data-action="save-edit-history" data-id="' + esc(item.id) + '">Сохранить</button>' +
-        '<button type="button" class="btn-full btn-outline" ' +
-            'data-action="delete-edit-history" data-id="' + esc(item.id) + '">Удалить операцию</button>' +
-        '<button type="button" class="btn-full btn-outline" ' +
-            'data-action="close-modal">Отмена</button>'
+        '<button type="button" class="btn-full btn-primary" data-action="save-edit-history" data-id="' + esc(item.id) + '">Сохранить</button>' +
+        '<button type="button" class="btn-full btn-outline" data-action="delete-edit-history" data-id="' + esc(item.id) + '">Удалить операцию</button>' +
+        '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>'
     );
 }
 
@@ -1980,7 +2355,6 @@ function captureEditFields() {
 
 function editPickCategory(catId) {
     if (!_editState.id) return;
-
     var item = null;
     for (var i = 0; i < state.history.length; i++) {
         if (state.history[i].id === _editState.id) { item = state.history[i]; break; }
@@ -2011,9 +2385,7 @@ function saveEditedHistory(id) {
     var oldAmount = item.amount;
     var sign = oldAmount < 0 ? -1 : 1;
     var newAmount = newAbs * sign;
-
-    var delta = newAmount - oldAmount;
-    state.balance += delta;
+    state.balance += (newAmount - oldAmount);
 
     var finalIso = applyTimeToIso(_editState.dateIso, _editState.timeStr);
 
@@ -2043,14 +2415,11 @@ function deleteFromEdit(id) {
     }, 50);
 }
 
-/* =========================================================================
-   МОДАЛКА УДАЛЕНИЯ ИСТОРИИ
-   ========================================================================= */
+/* ============ УДАЛЕНИЕ ИСТОРИИ ============ */
 var _delHistState = { id: null, refund: false, restore: false, bulkMode: false };
 
 function showDeleteHistoryItem(id, opts) {
     opts = opts || {};
-
     var item = null;
     for (var i = 0; i < state.history.length; i++) {
         if (state.history[i].id === id) { item = state.history[i]; break; }
@@ -2075,8 +2444,7 @@ function showDeleteHistoryItem(id, opts) {
 
     var balanceHint;
     if (refundVal) {
-        var newBalance = state.balance - item.amount;
-        balanceHint = 'Новый баланс: ' + fmt(newBalance);
+        balanceHint = 'Новый баланс: ' + fmt(state.balance - item.amount);
     } else {
         balanceHint = 'Баланс не изменится';
     }
@@ -2127,8 +2495,7 @@ function showDeleteHistoryItem(id, opts) {
             '<div class="h-meta">' + formatDateTime(item.date) + '</div>' +
             '<div class="h-amount ' + amountClass + '">' + sign + fmt(item.amount) + '</div>' +
         '</div>' +
-        refundRow +
-        restoreRow +
+        refundRow + restoreRow +
         '<div class="btn-row" style="margin-top:12px;">' +
             '<button type="button" class="btn-full btn-secondary" data-action="close-modal">Отмена</button>' +
             '<button type="button" class="btn-full btn-danger" data-action="history-confirm-del" ' +
@@ -2163,22 +2530,18 @@ function deleteHistoryItem(id, refund, restore) {
     }
     if (!item) return;
 
-    if (refund) {
-        state.balance -= item.amount;
-    }
+    if (refund) state.balance -= item.amount;
 
     if (restore && refund) {
         var debtInfo = parseDebtReturn(item.desc);
         if (debtInfo) {
             var restoreAmount = Math.abs(item.amount);
             var matches = state.debts.filter(function (d) { return d.to === debtInfo.to; });
-
             if (matches.length === 1) {
                 matches[0].amount += restoreAmount;
             } else {
                 state.debts.push({
-                    id: uid(),
-                    to: debtInfo.to,
+                    id: uid(), to: debtInfo.to,
                     amount: restoreAmount,
                     createdAt: new Date().toISOString()
                 });
@@ -2187,7 +2550,6 @@ function deleteHistoryItem(id, refund, restore) {
     }
 
     state.history = state.history.filter(function (h) { return h.id !== id; });
-
     saveState();
     hideModal();
 
@@ -2195,20 +2557,18 @@ function deleteHistoryItem(id, refund, restore) {
     if (currentTab === 'balance')        renderBalance(c);
     else if (currentTab === 'debts')     renderDebts(c);
     else if (currentTab === 'plans')     renderPlans(c);
+    else if (currentTab === 'shopping')  renderShopping(c);
     else if (currentTab === 'analytics') renderAnalytics(c);
     else if (currentTab === 'settings')  renderSettings(c);
 }
 
-/* =========================================================================
-   MODAL — базовая инфраструктура
-   ========================================================================= */
+/* ============ MODAL ============ */
 var modalVisible = false;
 var _confirmCallback = null;
 
 function showModal(html) {
     var content = document.getElementById('modalContent');
     var overlay = document.getElementById('modalOverlay');
-
     content.innerHTML = '<button type="button" class="modal-x" data-action="close-modal" aria-label="Закрыть">✕</button>' + html;
 
     content.style.position = 'relative';
@@ -2222,24 +2582,19 @@ function showModal(html) {
     overlay.style.display = 'block';
     overlay.classList.add('visible');
     overlay.scrollTop = 0;
-
     modalVisible = true;
 }
 
 function hideModal() {
     var overlay = document.getElementById('modalOverlay');
     var content = document.getElementById('modalContent');
-
     overlay.classList.remove('visible');
-
-    /* Ждём завершения CSS-анимации, потом очищаем */
     setTimeout(function () {
         if (!overlay.classList.contains('visible')) {
             overlay.style.display = 'none';
             content.innerHTML = '';
         }
     }, 260);
-
     modalVisible = false;
     _confirmCallback = null;
     _delHistState = { id: null, refund: false, restore: false, bulkMode: false };
@@ -2251,24 +2606,18 @@ function hideModal() {
 
 function showConfirm(title, text, onOk, opts) {
     opts = opts || {};
-    var okLabel = opts.okLabel || 'Подтвердить';
-    var cancelLabel = opts.cancelLabel || 'Отмена';
-    var okClass = opts.danger ? 'btn-danger' : 'btn-primary';
-    var hint = opts.hint || '';
-
     _confirmCallback = function () {
         _confirmCallback = null;
-        try { onOk(); } catch (e) { console.error('[FinanceList] confirm callback error:', e); }
+        try { onOk(); } catch (e) { console.error('[FinanceList] confirm:', e); }
     };
-
     showModal(
         '<h3>' + esc(title) + '</h3>' +
         '<p class="confirm-text">' + esc(text) + '</p>' +
         '<div class="btn-row">' +
-            '<button type="button" class="btn-full btn-secondary" data-action="confirm-cancel">' + esc(cancelLabel) + '</button>' +
-            '<button type="button" class="btn-full ' + okClass + '" data-action="confirm-ok">' + esc(okLabel) + '</button>' +
+            '<button type="button" class="btn-full btn-secondary" data-action="confirm-cancel">' + esc(opts.cancelLabel || 'Отмена') + '</button>' +
+            '<button type="button" class="btn-full ' + (opts.danger ? 'btn-danger' : 'btn-primary') + '" data-action="confirm-ok">' + esc(opts.okLabel || 'Подтвердить') + '</button>' +
         '</div>' +
-        (hint ? '<div class="confirm-hint">' + esc(hint) + '</div>' : '')
+        (opts.hint ? '<div class="confirm-hint">' + esc(opts.hint) + '</div>' : '')
     );
 }
 
@@ -2282,7 +2631,9 @@ function handleConfirmOk() {
 function handleConfirmCancel() {
     _confirmCallback = null;
     hideModal();
-}function showPayDebt(id) {
+}
+
+function showPayDebt(id) {
     var d = null;
     for (var i = 0; i < state.debts.length; i++) {
         if (state.debts[i].id === id) { d = state.debts[i]; break; }
@@ -2292,8 +2643,8 @@ function handleConfirmCancel() {
     var remain = d.amount;
     var available = state.balance;
     var maxReturn = Math.min(remain, available);
-
     var half = Math.floor(remain / 2);
+
     var quickHtml = '<div class="quick-amounts">' +
         (half > 0 && half <= maxReturn
             ? '<button type="button" data-action="debt-quick" data-amount="' + half + '">50% (' + fmt(half) + ')</button>'
@@ -2318,10 +2669,11 @@ function handleConfirmCancel() {
 
 function debtQuickFill(amount) {
     var input = document.getElementById('debtPayAmount');
-    if (input) {
-        input.value = String(amount);
-    }
-}function buildChartData(tfId) {
+    if (input) input.value = String(amount);
+}
+
+/* ============ ANALYTICS — buildChartData ============ */
+function buildChartData(tfId) {
     var tf = null;
     for (var i = 0; i < TIMEFRAMES.length; i++) {
         if (TIMEFRAMES[i].id === tfId) { tf = TIMEFRAMES[i]; break; }
@@ -2330,8 +2682,8 @@ function debtQuickFill(amount) {
 
     var now = new Date();
     var todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
     var startDate;
+
     if (tf.unit === 'day') {
         startDate = new Date(todayEnd);
         startDate.setDate(startDate.getDate() - tf.days + 1);
@@ -2352,7 +2704,6 @@ function debtQuickFill(amount) {
     }
 
     var slots = [];
-
     if (tf.unit === 'day') {
         var cur = new Date(startDate);
         while (cur <= todayEnd) {
@@ -2367,9 +2718,7 @@ function debtQuickFill(amount) {
             wEnd.setDate(wEnd.getDate() + 6);
             wEnd.setHours(23, 59, 59, 999);
             slots.push({ start: new Date(w), end: wEnd, label: formatWeekLabel(w), income: 0, expense: 0, ops: 0 });
-            var nextW = new Date(w);
-            nextW.setDate(nextW.getDate() + 7);
-            w = nextW;
+            var nw = new Date(w); nw.setDate(nw.getDate() + 7); w = nw;
         }
     } else if (tf.unit === 'month') {
         var m = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
@@ -2395,14 +2744,9 @@ function debtQuickFill(amount) {
     }
 
     var balanceBefore = state.balance;
-    for (var k = 0; k < state.history.length; k++) {
-        balanceBefore -= state.history[k].amount;
-    }
+    for (var k = 0; k < state.history.length; k++) balanceBefore -= state.history[k].amount;
 
-    var sorted = state.history.slice().sort(function (a, b) {
-        return new Date(a.date) - new Date(b.date);
-    });
-
+    var sorted = state.history.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
     var running = balanceBefore;
     var hIdx = 0;
 
@@ -2411,13 +2755,8 @@ function debtQuickFill(amount) {
         while (hIdx < sorted.length) {
             var h = sorted[hIdx];
             var hTs = new Date(h.date).getTime();
-            if (hTs < slot.start.getTime()) {
-                running += h.amount;
-                hIdx++;
-                continue;
-            }
+            if (hTs < slot.start.getTime()) { running += h.amount; hIdx++; continue; }
             if (hTs > slot.end.getTime()) break;
-
             running += h.amount;
             if (h.amount > 0) slot.income += h.amount;
             else if (h.amount < 0) slot.expense += Math.abs(h.amount);
@@ -2426,44 +2765,30 @@ function debtQuickFill(amount) {
         }
         slot.balanceEnd = running;
     }
-
     return slots;
-}function formatDayLabel(d) {
-    return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
 }
 
-function formatWeekLabel(d) {
-    return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()];
-}
-
-function formatMonthLabel(d) {
-    return MONTHS_SHORT[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2);
-}
-
+function formatDayLabel(d) { return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()]; }
+function formatWeekLabel(d) { return d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()]; }
+function formatMonthLabel(d) { return MONTHS_SHORT[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2); }
 function formatQuarterLabel(d) {
     var q = Math.floor(d.getMonth() / 3) + 1;
     return 'Q' + q + ' ' + String(d.getFullYear()).slice(2);
 }
 
 function formatPeriodFull(slot, tfId) {
-    if (tfId === 'D1') {
-        return slot.start.getDate() + ' ' + MONTHS_FULL[slot.start.getMonth()] + ' ' + slot.start.getFullYear();
-    }
+    if (tfId === 'D1') return slot.start.getDate() + ' ' + MONTHS_FULL[slot.start.getMonth()] + ' ' + slot.start.getFullYear();
     if (tfId === 'W1') {
         var s = slot.start, e = slot.end;
-        var sStr = s.getDate() + ' ' + MONTHS_SHORT[s.getMonth()];
-        var eStr = e.getDate() + ' ' + MONTHS_SHORT[e.getMonth()];
-        return sStr + ' — ' + eStr + ' ' + s.getFullYear();
+        return s.getDate() + ' ' + MONTHS_SHORT[s.getMonth()] + ' — ' +
+               e.getDate() + ' ' + MONTHS_SHORT[e.getMonth()] + ' ' + s.getFullYear();
     }
-    if (tfId === 'M1') {
-        return MONTHS_FULL[slot.start.getMonth()] + ' ' + slot.start.getFullYear();
-    }
-    if (tfId === 'M3') {
-        var q = Math.floor(slot.start.getMonth() / 3) + 1;
-        return 'Квартал ' + q + ', ' + slot.start.getFullYear();
-    }
+    if (tfId === 'M1') return MONTHS_FULL[slot.start.getMonth()] + ' ' + slot.start.getFullYear();
+    if (tfId === 'M3') return 'Квартал ' + (Math.floor(slot.start.getMonth() / 3) + 1) + ', ' + slot.start.getFullYear();
     return 'Год ' + slot.start.getFullYear();
 }
+
+/* ============ CANVAS — drawChart ============ */
 function initCanvasHiDPI(canvas, cssW, cssH) {
     var dpr = window.devicePixelRatio || 1;
     canvas.width  = Math.floor(cssW * dpr);
@@ -2477,7 +2802,6 @@ function initCanvasHiDPI(canvas, cssW, cssH) {
 
 function drawChart(canvas, slots, tfId) {
     if (!canvas || !slots || slots.length === 0) return;
-
     var wrap = canvas.parentNode;
     var cssW = wrap.clientWidth;
     var cssH = 320;
@@ -2485,22 +2809,13 @@ function drawChart(canvas, slots, tfId) {
 
     var PAD_L = 44, PAD_R = 12, PAD_T = 12, PAD_B = 22;
     var GAP = 6, VOL_H = 60;
-
     var chartW = cssW - PAD_L - PAD_R;
     var chartH = cssH - PAD_T - PAD_B - GAP - VOL_H;
+    var lineTop = PAD_T, lineBot = PAD_T + chartH;
+    var volTop = lineBot + GAP, volBot = volTop + VOL_H;
 
-    var lineTop = PAD_T;
-    var lineBot = PAD_T + chartH;
-    var volTop  = lineBot + GAP;
-    var volBot  = volTop + VOL_H;
-
-    var C_GRID  = '#2a3548';
-    var C_AXIS  = '#3a4558';
-    var C_TEXT  = '#8b9bb4';
-    var C_LINE  = '#00d2ff';
-    var C_GREEN = '#00d26a';
-    var C_RED   = '#ff4757';
-
+    var C_GRID = '#2a3548', C_AXIS = '#3a4558', C_TEXT = '#8b9bb4';
+    var C_LINE = '#00d2ff', C_GREEN = '#00d26a', C_RED = '#ff4757';
     ctx.clearRect(0, 0, cssW, cssH);
 
     var minBal = Infinity, maxBal = -Infinity;
@@ -2511,46 +2826,35 @@ function drawChart(canvas, slots, tfId) {
     }
     if (!isFinite(minBal)) { minBal = 0; maxBal = 1; }
     if (minBal === maxBal) { minBal -= 1; maxBal += 1; }
-
     var range = maxBal - minBal;
-    minBal -= range * 0.05;
-    maxBal += range * 0.05;
+    minBal -= range * 0.05; maxBal += range * 0.05;
     if (minBal > 0 && minBal < range * 0.5) minBal = 0;
     if (maxBal < 0 && maxBal > -range * 0.5) maxBal = 0;
-
     var yRange = maxBal - minBal;
     if (yRange === 0) yRange = 1;
 
-    function yForBalance(b) {
-        return lineBot - ((b - minBal) / yRange) * chartH;
-    }
+    function yForBalance(b) { return lineBot - ((b - minBal) / yRange) * chartH; }
 
     var maxVol = 0;
     for (var v = 0; v < slots.length; v++) {
-        if (slots[v].income  > maxVol) maxVol = slots[v].income;
+        if (slots[v].income > maxVol) maxVol = slots[v].income;
         if (slots[v].expense > maxVol) maxVol = slots[v].expense;
     }
     if (maxVol === 0) maxVol = 1;
     var volHalf = VOL_H / 2;
 
-    var gridLines = 4;
-    ctx.strokeStyle = C_GRID;
-    ctx.fillStyle = C_TEXT;
+    ctx.strokeStyle = C_GRID; ctx.fillStyle = C_TEXT;
     ctx.font = '10px -apple-system, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 1;
-
-    for (var g = 0; g <= gridLines; g++) {
-        var val = minBal + (yRange * g / gridLines);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.lineWidth = 1;
+    for (var g = 0; g <= 4; g++) {
+        var val = minBal + (yRange * g / 4);
         var yy = yForBalance(val);
         ctx.beginPath();
-        ctx.moveTo(PAD_L, yy);
-        ctx.lineTo(PAD_L + chartW, yy);
-        ctx.stroke();
+        ctx.moveTo(PAD_L, yy); ctx.lineTo(PAD_L + chartW, yy); ctx.stroke();
         ctx.fillText(fmtShort(val), PAD_L - 6, yy);
-    }    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+    }
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     var maxLabels = Math.max(3, Math.floor(chartW / 55));
     var labelEvery = Math.ceil(slots.length / maxLabels);
     for (var s2 = 0; s2 < slots.length; s2++) {
@@ -2559,81 +2863,58 @@ function drawChart(canvas, slots, tfId) {
         ctx.fillText(slots[s2].label, lx, volBot + 4);
     }
 
-    if (slots.length > 0) {
-        var grad = ctx.createLinearGradient(0, lineTop, 0, lineBot);
-        grad.addColorStop(0, 'rgba(0,210,255,0.18)');
-        grad.addColorStop(1, 'rgba(0,210,255,0)');
+    var grad = ctx.createLinearGradient(0, lineTop, 0, lineBot);
+    grad.addColorStop(0, 'rgba(0,210,255,0.18)');
+    grad.addColorStop(1, 'rgba(0,210,255,0)');
+    ctx.beginPath();
+    for (var p = 0; p < slots.length; p++) {
+        var px = PAD_L + (chartW * (p + 0.5) / slots.length);
+        var py = yForBalance(slots[p].balanceEnd);
+        if (p === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.lineTo(PAD_L + (chartW * (slots.length - 0.5) / slots.length), lineBot);
+    ctx.lineTo(PAD_L + (chartW * 0.5 / slots.length), lineBot);
+    ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
 
-        ctx.beginPath();
-        for (var p = 0; p < slots.length; p++) {
-            var px = PAD_L + (chartW * (p + 0.5) / slots.length);
-            var py = yForBalance(slots[p].balanceEnd);
-            if (p === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        }
-        var lastX = PAD_L + (chartW * (slots.length - 0.5) / slots.length);
-        var firstX = PAD_L + (chartW * 0.5 / slots.length);
-        ctx.lineTo(lastX, lineBot);
-        ctx.lineTo(firstX, lineBot);
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
+    ctx.beginPath();
+    for (var p2 = 0; p2 < slots.length; p2++) {
+        var px2 = PAD_L + (chartW * (p2 + 0.5) / slots.length);
+        var py2 = yForBalance(slots[p2].balanceEnd);
+        if (p2 === 0) ctx.moveTo(px2, py2); else ctx.lineTo(px2, py2);
+    }
+    ctx.strokeStyle = C_LINE; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
 
-        ctx.beginPath();
-        for (var p2 = 0; p2 < slots.length; p2++) {
-            var px2 = PAD_L + (chartW * (p2 + 0.5) / slots.length);
-            var py2 = yForBalance(slots[p2].balanceEnd);
-            if (p2 === 0) ctx.moveTo(px2, py2);
-            else ctx.lineTo(px2, py2);
-        }
-        ctx.strokeStyle = C_LINE;
-        ctx.lineWidth = 2;
-        ctx.lineJoin = 'round';
-        ctx.stroke();
-
-        if (slots.length <= 40) {
-            ctx.fillStyle = C_LINE;
-            for (var p3 = 0; p3 < slots.length; p3++) {
-                var px3 = PAD_L + (chartW * (p3 + 0.5) / slots.length);
-                var py3 = yForBalance(slots[p3].balanceEnd);
-                ctx.beginPath();
-                ctx.arc(px3, py3, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
+    if (slots.length <= 40) {
+        ctx.fillStyle = C_LINE;
+        for (var p3 = 0; p3 < slots.length; p3++) {
+            ctx.beginPath();
+            ctx.arc(PAD_L + (chartW * (p3 + 0.5) / slots.length), yForBalance(slots[p3].balanceEnd), 2.5, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
     ctx.strokeStyle = C_AXIS;
     ctx.beginPath();
-    ctx.moveTo(PAD_L, volTop + volHalf);
-    ctx.lineTo(PAD_L + chartW, volTop + volHalf);
-    ctx.stroke();
+    ctx.moveTo(PAD_L, volTop + volHalf); ctx.lineTo(PAD_L + chartW, volTop + volHalf); ctx.stroke();
 
     var slotW = chartW / slots.length;
     var barW = Math.max(1, Math.min(slotW * 0.7, 20));
-
     for (var bx = 0; bx < slots.length; bx++) {
         var sl = slots[bx];
         var cx = PAD_L + slotW * (bx + 0.5);
-
         if (sl.income > 0) {
-            var hInc = (sl.income / maxVol) * volHalf;
             ctx.fillStyle = C_GREEN;
-            ctx.fillRect(cx - barW / 2, volTop + volHalf - hInc, barW, hInc);
+            ctx.fillRect(cx - barW / 2, volTop + volHalf - (sl.income / maxVol) * volHalf, barW, (sl.income / maxVol) * volHalf);
         }
         if (sl.expense > 0) {
-            var hExp = (sl.expense / maxVol) * volHalf;
             ctx.fillStyle = C_RED;
-            ctx.fillRect(cx - barW / 2, volTop + volHalf, barW, hExp);
+            ctx.fillRect(cx - barW / 2, volTop + volHalf, barW, (sl.expense / maxVol) * volHalf);
         }
     }
 
-    ctx.strokeStyle = C_AXIS;
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = C_AXIS; ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(PAD_L, lineTop);
-    ctx.lineTo(PAD_L, volBot);
-    ctx.stroke();
+    ctx.moveTo(PAD_L, lineTop); ctx.lineTo(PAD_L, volBot); ctx.stroke();
 }
 var chartSlotsCache = [];
 var chartTfCache = 'D1';
@@ -2696,14 +2977,9 @@ function renderAnalytics(c) {
         }
     }
 
-    var totalExpSum = 0;
-    var totalIncSum = 0;
-    for (var e1 = 0; e1 < CATEGORIES.length; e1++) {
-        totalExpSum += expSums[CATEGORIES[e1].id] || 0;
-    }
-    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) {
-        totalIncSum += incSums[CATEGORIES_INCOME[i1].id] || 0;
-    }
+    var totalExpSum = 0, totalIncSum = 0;
+    for (var e1 = 0; e1 < CATEGORIES.length; e1++) totalExpSum += expSums[CATEGORIES[e1].id] || 0;
+    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) totalIncSum += incSums[CATEGORIES_INCOME[i1].id] || 0;
 
     var expRowsHtml = '';
     for (var ei = 0; ei < CATEGORIES.length; ei++) {
@@ -2736,9 +3012,7 @@ function renderAnalytics(c) {
     var html =
         '<div class="card">' +
             tfHtml +
-            '<div class="chart-wrap">' +
-                '<canvas class="chart-canvas" id="chartCanvas"></canvas>' +
-            '</div>' +
+            '<div class="chart-wrap"><canvas class="chart-canvas" id="chartCanvas"></canvas></div>' +
             '<div class="analytics-summary">' +
                 '<div class="as-row"><span>Доходы за период</span><b class="pos">+' + fmt(totalIncome) + '</b></div>' +
                 '<div class="as-row"><span>Расходы за период</span><b class="neg">−' + fmt(totalExpense) + '</b></div>' +
@@ -2781,30 +3055,20 @@ function setTimeframe(tfId) {
     hideChartTooltip();
     renderAnalytics(document.getElementById('mainContent'));
 }
+
 function handleChartTap(e, canvas) {
     if (!chartSlotsCache || chartSlotsCache.length === 0) return;
-
     var rect = canvas.getBoundingClientRect();
     var tapX = e.clientX - rect.left;
-
-    var cssW = rect.width;
     var PAD_L = 44, PAD_R = 12;
-    var chartW = cssW - PAD_L - PAD_R;
-
-    if (tapX < PAD_L || tapX > PAD_L + chartW) {
-        hideChartTooltip();
-        return;
-    }
+    var chartW = rect.width - PAD_L - PAD_R;
+    if (tapX < PAD_L || tapX > PAD_L + chartW) { hideChartTooltip(); return; }
 
     var slotW = chartW / chartSlotsCache.length;
     var idx = Math.floor((tapX - PAD_L) / slotW);
-    if (idx < 0 || idx >= chartSlotsCache.length) {
-        hideChartTooltip();
-        return;
-    }
+    if (idx < 0 || idx >= chartSlotsCache.length) { hideChartTooltip(); return; }
 
-    var slot = chartSlotsCache[idx];
-    showChartTooltip(slot, e.clientX, e.clientY);
+    showChartTooltip(chartSlotsCache[idx], e.clientX, e.clientY);
 }
 
 function showChartTooltip(slot, tapX, tapY) {
@@ -2835,44 +3099,31 @@ function showChartTooltip(slot, tapX, tapY) {
         }
     }
 
-    var totalExpTt = 0;
-    var totalIncTt = 0;
-    for (var e1 = 0; e1 < CATEGORIES.length; e1++) {
-        totalExpTt += expSums[CATEGORIES[e1].id] || 0;
-    }
-    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) {
-        totalIncTt += incSums[CATEGORIES_INCOME[i1].id] || 0;
-    }
+    var totalExpTt = 0, totalIncTt = 0;
+    for (var e1 = 0; e1 < CATEGORIES.length; e1++) totalExpTt += expSums[CATEGORIES[e1].id] || 0;
+    for (var i1 = 0; i1 < CATEGORIES_INCOME.length; i1++) totalIncTt += incSums[CATEGORIES_INCOME[i1].id] || 0;
 
     var catHtml = '';
-
     if (totalIncTt > 0) {
         catHtml += '<div class="tt-sep"></div>';
         for (var ci1 = 0; ci1 < CATEGORIES_INCOME.length; ci1++) {
             var catDefI = CATEGORIES_INCOME[ci1];
             var sumI = incSums[catDefI.id] || 0;
-            catHtml +=
-                '<div class="tt-cat-row">' +
-                    '<span style="color:' + catDefI.color + '">' + catDefI.icon + ' ' + esc(catDefI.name) + '</span>' +
-                    '<span style="color:' + catDefI.color + ';font-weight:bold">' + fmt(sumI) + '</span>' +
-                '</div>';
+            catHtml += '<div class="tt-cat-row">' +
+                '<span style="color:' + catDefI.color + '">' + catDefI.icon + ' ' + esc(catDefI.name) + '</span>' +
+                '<span style="color:' + catDefI.color + ';font-weight:bold">' + fmt(sumI) + '</span></div>';
         }
     }
-
     if (totalExpTt > 0) {
         catHtml += '<div class="tt-sep"></div>';
         for (var ci2 = 0; ci2 < CATEGORIES.length; ci2++) {
             var catDefE = CATEGORIES[ci2];
             var sumE = expSums[catDefE.id] || 0;
-            catHtml +=
-                '<div class="tt-cat-row">' +
-                    '<span style="color:' + catDefE.color + '">' + catDefE.icon + ' ' + esc(catDefE.name) + '</span>' +
-                    '<span style="color:' + catDefE.color + ';font-weight:bold">' + fmt(sumE) + '</span>' +
-                '</div>';
+            catHtml += '<div class="tt-cat-row">' +
+                '<span style="color:' + catDefE.color + '">' + catDefE.icon + ' ' + esc(catDefE.name) + '</span>' +
+                '<span style="color:' + catDefE.color + ';font-weight:bold">' + fmt(sumE) + '</span></div>';
         }
     }
-
-    var balanceStr = fmt(slot.balanceEnd !== undefined ? slot.balanceEnd : 0);
 
     tt.innerHTML =
         '<div class="tt-period">' + esc(period) + '</div>' +
@@ -2880,77 +3131,54 @@ function showChartTooltip(slot, tapX, tapY) {
         '<div class="tt-row"><span class="tt-label">Расход</span><span class="tt-value neg">−' + fmt(slot.expense) + '</span></div>' +
         '<div class="tt-row"><span class="tt-label">Итог</span><span class="tt-value ' + netClass + '">' + netSign + fmt(net) + '</span></div>' +
         '<div class="tt-sep"></div>' +
-        '<div class="tt-row"><span class="tt-label">Баланс</span><span class="tt-value">' + balanceStr + '</span></div>' +
+        '<div class="tt-row"><span class="tt-label">Баланс</span><span class="tt-value">' + fmt(slot.balanceEnd || 0) + '</span></div>' +
         '<div class="tt-row"><span class="tt-label">Операций</span><span class="tt-value">' + slot.ops + '</span></div>' +
         catHtml;
-
     tt.style.display = 'block';
 
     var ttRect = tt.getBoundingClientRect();
-    var vw = window.innerWidth;
-    var vh = window.innerHeight;
-    var offset = 12;
-
-    var posX = tapX + offset;
-    var posY = tapY + offset;
-
+    var vw = window.innerWidth, vh = window.innerHeight, offset = 12;
+    var posX = tapX + offset, posY = tapY + offset;
     if (posX + ttRect.width > vw - 8) posX = tapX - ttRect.width - offset;
     if (posX < 8) posX = 8;
     if (posY + ttRect.height > vh - 8) posY = tapY - ttRect.height - offset;
     if (posY < 8) posY = 8;
-
     tt.style.left = posX + 'px';
     tt.style.top  = posY + 'px';
 }
 
 function hideChartTooltip() {
     var tt = document.getElementById('chartTooltip');
-    if (tt) {
-        tt.style.display = 'none';
-        tt.innerHTML = '';
-    }
+    if (tt) { tt.style.display = 'none'; tt.innerHTML = ''; }
 }
+
+/* ============ АНАЛИЗ ПЕРИОДА ============ */
 function openPeriodPicker() {
     var fromIso = state.periodFrom || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
     var toIso   = state.periodTo   || new Date().toISOString();
-
-    delete _datePickerState.periodFrom;
-    delete _datePickerState.periodTo;
+    delete _datePickerState.periodFrom; delete _datePickerState.periodTo;
     ensureDatePickerState('periodFrom', fromIso);
     ensureDatePickerState('periodTo', toIso);
 
     showModal(
         '<h3>Выбрать период</h3>' +
-        '<div class="period-picker-label">От</div>' +
-        buildDatePickerHtml('periodFrom', fromIso) +
-        '<div class="period-picker-label">До</div>' +
-        buildDatePickerHtml('periodTo', toIso) +
+        '<div class="period-picker-label">От</div>' + buildDatePickerHtml('periodFrom', fromIso) +
+        '<div class="period-picker-label">До</div>' + buildDatePickerHtml('periodTo', toIso) +
         '<button type="button" class="btn-full btn-primary" data-action="period-apply">Применить</button>' +
         '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>'
     );
 }
 
 function applyPeriod() {
-    var fromSt = _datePickerState.periodFrom;
-    var toSt   = _datePickerState.periodTo;
+    var fromSt = _datePickerState.periodFrom, toSt = _datePickerState.periodTo;
     if (!fromSt || !toSt) return;
-
     var fromDate = new Date(fromSt.year, fromSt.month - 1, fromSt.day, 0, 0, 0);
     var toDate   = new Date(toSt.year, toSt.month - 1, toSt.day, 23, 59, 59);
-
-    if (fromDate > toDate) {
-        alert('Дата «От» позже, чем «До». Поменяй местами.');
-        return;
-    }
-
+    if (fromDate > toDate) { alert('Дата «От» позже, чем «До».'); return; }
     state.periodFrom = fromDate.toISOString();
     state.periodTo = toDate.toISOString();
-
-    delete _datePickerState.periodFrom;
-    delete _datePickerState.periodTo;
-
-    saveState();
-    hideModal();
+    delete _datePickerState.periodFrom; delete _datePickerState.periodTo;
+    saveState(); hideModal();
     renderAnalytics(document.getElementById('mainContent'));
 }
 
@@ -2958,14 +3186,11 @@ function buildPeriodBlockHtml() {
     if (!state.periodFrom || !state.periodTo) {
         return '<div class="card">' +
             '<div class="card-title" style="margin-bottom:12px">Анализ периода</div>' +
-            '<div class="period-empty">' +
-                '<button type="button" class="period-empty-btn" data-action="period-open">Выбрать период</button>' +
-            '</div>' +
+            '<div class="period-empty"><button type="button" class="period-empty-btn" data-action="period-open">Выбрать период</button></div>' +
         '</div>';
     }
 
-    var fromDate = new Date(state.periodFrom);
-    var toDate = new Date(state.periodTo);
+    var fromDate = new Date(state.periodFrom), toDate = new Date(state.periodTo);
     var fromStr = fromDate.getDate() + ' ' + MONTHS_SHORT[fromDate.getMonth()] + ' ' + fromDate.getFullYear();
     var toStr = toDate.getDate() + ' ' + MONTHS_SHORT[toDate.getMonth()] + ' ' + toDate.getFullYear();
 
@@ -2973,9 +3198,7 @@ function buildPeriodBlockHtml() {
     for (var e = 0; e < CATEGORIES.length; e++) expSums[CATEGORIES[e].id] = 0;
     for (var i = 0; i < CATEGORIES_INCOME.length; i++) incSums[CATEGORIES_INCOME[i].id] = 0;
 
-    var fromTs = fromDate.getTime();
-    var toTs = toDate.getTime();
-
+    var fromTs = fromDate.getTime(), toTs = toDate.getTime();
     for (var k = 0; k < state.history.length; k++) {
         var h = state.history[k];
         var hTs = new Date(h.date).getTime();
@@ -2994,7 +3217,6 @@ function buildPeriodBlockHtml() {
     var totalExp = 0, totalInc = 0;
     for (var ei = 0; ei < CATEGORIES.length; ei++) totalExp += expSums[CATEGORIES[ei].id] || 0;
     for (var ii = 0; ii < CATEGORIES_INCOME.length; ii++) totalInc += incSums[CATEGORIES_INCOME[ii].id] || 0;
-
     var totalAll = totalExp + totalInc;
     var items = [];
 
@@ -3002,22 +3224,18 @@ function buildPeriodBlockHtml() {
         var cat1 = CATEGORIES[c1];
         var sum1 = expSums[cat1.id] || 0;
         var pct1 = totalAll > 0 ? (sum1 / totalAll) * 100 : 0;
-        items.push({ icon: cat1.icon, name: cat1.name, color: cat1.color, amount: sum1, pct: pct1, type: 'expense', hasData: sum1 > 0 });
+        items.push({ icon: cat1.icon, amount: sum1, pct: pct1, type: 'expense', hasData: sum1 > 0 });
     }
-
     for (var c2 = 0; c2 < CATEGORIES_INCOME.length; c2++) {
         var cat2 = CATEGORIES_INCOME[c2];
         var sum2 = incSums[cat2.id] || 0;
         var pct2 = totalAll > 0 ? (sum2 / totalAll) * 100 : 0;
-        items.push({ icon: cat2.icon, name: cat2.name, color: cat2.color, amount: sum2, pct: pct2, type: 'income', hasData: sum2 > 0 });
+        items.push({ icon: cat2.icon, amount: sum2, pct: pct2, type: 'income', hasData: sum2 > 0 });
     }
-
     items.sort(function (a, b) { return Math.abs(b.amount) - Math.abs(a.amount); });
 
     var maxAmount = 0;
-    for (var mi = 0; mi < items.length; mi++) {
-        if (items[mi].amount > maxAmount) maxAmount = items[mi].amount;
-    }
+    for (var mi = 0; mi < items.length; mi++) if (items[mi].amount > maxAmount) maxAmount = items[mi].amount;
     if (maxAmount === 0) maxAmount = 1;
 
     var candlesHtml = '';
@@ -3027,7 +3245,6 @@ function buildPeriodBlockHtml() {
         var barClass = it.hasData ? it.type : 'empty';
         var pctStr = it.hasData ? (it.pct < 1 ? '<1%' : Math.round(it.pct) + '%') : '0%';
         var amountStr = it.hasData ? fmtShort(it.amount) : '';
-
         candlesHtml +=
             '<div class="candle">' +
                 '<div class="candle-amount">' + amountStr + '</div>' +
@@ -3038,49 +3255,33 @@ function buildPeriodBlockHtml() {
     }
 
     var net = totalInc - totalExp;
-    var netClass = net >= 0 ? 'pos' : 'neg';
     var netSign = net >= 0 ? '+' : '';
     var netColor = net >= 0 ? 'var(--green)' : 'var(--red)';
 
     return '<div class="card">' +
         '<div class="card-title" style="margin-bottom:12px">Анализ периода</div>' +
         '<div class="period-header">' +
-            '<div class="period-range">' +
-                '<span class="pr-label">Период</span>' +
-                fromStr + ' — ' + toStr +
-            '</div>' +
+            '<div class="period-range"><span class="pr-label">Период</span>' + fromStr + ' — ' + toStr + '</div>' +
             '<button type="button" class="period-edit-btn" data-action="period-open">Изменить</button>' +
         '</div>' +
-        '<div class="candles-wrap">' +
-            '<div class="candles-row">' + candlesHtml + '</div>' +
-        '</div>' +
+        '<div class="candles-wrap"><div class="candles-row">' + candlesHtml + '</div></div>' +
         '<div class="period-legend">' +
             '<span class="pl-item"><span class="pl-dot income"></span>Доходы</span>' +
             '<span class="pl-item"><span class="pl-dot expense"></span>Расходы</span>' +
             '<span class="pl-item"><span class="pl-dot empty"></span>Нет данных</span>' +
         '</div>' +
         '<div class="period-totals">' +
-            '<div class="pt-row">' +
-                '<span class="pt-label">Всего доходов</span>' +
-                '<span class="pt-value" style="color:var(--green)">' + (totalInc > 0 ? '+' : '') + fmt(totalInc) + '</span>' +
-            '</div>' +
-            '<div class="pt-row">' +
-                '<span class="pt-label">Всего расходов</span>' +
-                '<span class="pt-value" style="color:var(--red)">' + (totalExp > 0 ? '−' : '') + fmt(totalExp) + '</span>' +
-            '</div>' +
-            '<div class="pt-row pt-row-total">' +
-                '<span class="pt-label">Итог за период</span>' +
-                '<span class="pt-value" style="color:' + netColor + '">' + netSign + fmt(net) + '</span>' +
-            '</div>' +
+            '<div class="pt-row"><span class="pt-label">Всего доходов</span><span class="pt-value" style="color:var(--green)">' + (totalInc > 0 ? '+' : '') + fmt(totalInc) + '</span></div>' +
+            '<div class="pt-row"><span class="pt-label">Всего расходов</span><span class="pt-value" style="color:var(--red)">' + (totalExp > 0 ? '−' : '') + fmt(totalExp) + '</span></div>' +
+            '<div class="pt-row pt-row-total"><span class="pt-label">Итог за период</span><span class="pt-value" style="color:' + netColor + '">' + netSign + fmt(net) + '</span></div>' +
         '</div>' +
     '</div>';
 }
+
+/* ============ БЮДЖЕТЫ ============ */
 function buildBudgetsBlockHtml() {
     var viewMonth = state.budgetsViewMonth || getCurrentMonthKey();
-
-    var budgetsForMonth = state.budgets.filter(function (b) {
-        return b.month === viewMonth;
-    });
+    var budgetsForMonth = state.budgets.filter(function (b) { return b.month === viewMonth; });
 
     budgetsForMonth.sort(function (a, b) {
         var idxA = -1, idxB = -1;
@@ -3091,37 +3292,29 @@ function buildBudgetsBlockHtml() {
         return idxA - idxB;
     });
 
-    var currentKey = getCurrentMonthKey();
-    var canGoForward = viewMonth < currentKey;
-
+    var canGoForward = viewMonth < getCurrentMonthKey();
     var rowsHtml = '';
+
     if (budgetsForMonth.length === 0) {
-        rowsHtml = '<div class="budgets-empty">' +
-            'На этот месяц бюджетов нет<br>' +
-            '<span style="font-size:11px;">Нажми «Изменить бюджеты» ниже</span>' +
-        '</div>';
+        rowsHtml = '<div class="budgets-empty">На этот месяц бюджетов нет<br><span style="font-size:11px;">Нажми «Изменить бюджеты» ниже</span></div>';
     } else {
         for (var i = 0; i < budgetsForMonth.length; i++) {
             var b = budgetsForMonth[i];
             var cat = getCategory(b.categoryId);
             if (!cat) continue;
-
             var spent = getSpentForCategory(b.categoryId, viewMonth);
             var pct = b.limit > 0 ? (spent / b.limit) * 100 : 0;
             var barPct = Math.min(100, pct);
             var color = getBudgetColor(pct);
             var over = spent > b.limit;
             var overAmount = over ? (spent - b.limit) : 0;
-
             rowsHtml +=
                 '<div class="budget-row">' +
                     '<div class="budget-row-top">' +
                         '<span class="budget-row-name">' + cat.icon + ' ' + esc(cat.name) + '</span>' +
                         '<span class="budget-row-amounts"><b>' + fmt(spent) + '</b> / ' + fmt(b.limit) + '</span>' +
                     '</div>' +
-                    '<div class="budget-bar-bg">' +
-                        '<div class="budget-bar-fill" style="width:' + barPct + '%;background:' + color + '"></div>' +
-                    '</div>' +
+                    '<div class="budget-bar-bg"><div class="budget-bar-fill" style="width:' + barPct + '%;background:' + color + '"></div></div>' +
                     (over ? '<div class="budget-over">Превышение: ' + fmt(overAmount) + '</div>' : '') +
                 '</div>';
         }
@@ -3133,31 +3326,23 @@ function buildBudgetsBlockHtml() {
     return '<div class="card">' +
         '<div class="budgets-header">' +
             '<div class="card-title" style="margin:0;">Бюджеты</div>' +
-            '<button type="button" class="budgets-toggle ' + rotateClass + '" ' +
-                'data-action="budgets-toggle" aria-label="Свернуть">▼</button>' +
+            '<button type="button" class="budgets-toggle ' + rotateClass + '" data-action="budgets-toggle" aria-label="Свернуть">▼</button>' +
         '</div>' +
         '<div class="budgets-collapse-wrap' + collapseClass + '">' +
             '<div class="budgets-month-nav">' +
-                '<button type="button" class="budgets-month-arrow" ' +
-                    'data-action="budgets-month-prev" aria-label="Прошлый месяц">←</button>' +
-                '<div class="budgets-month-label" data-action="budgets-month-open">' +
-                    formatMonthRu(viewMonth) +
-                '</div>' +
-                '<button type="button" class="budgets-month-arrow" ' +
-                    'data-action="budgets-month-next"' + (canGoForward ? '' : ' disabled') +
-                    ' aria-label="Следующий месяц">→</button>' +
+                '<button type="button" class="budgets-month-arrow" data-action="budgets-month-prev">←</button>' +
+                '<div class="budgets-month-label" data-action="budgets-month-open">' + formatMonthRu(viewMonth) + '</div>' +
+                '<button type="button" class="budgets-month-arrow" data-action="budgets-month-next"' + (canGoForward ? '' : ' disabled') + '>→</button>' +
             '</div>' +
             '<div class="budgets-list">' + rowsHtml + '</div>' +
-            '<button type="button" class="budgets-add-btn" data-action="budgets-edit-open">' +
-                '+ Изменить бюджеты' +
-            '</button>' +
+            '<button type="button" class="budgets-add-btn" data-action="budgets-edit-open">+ Изменить бюджеты</button>' +
         '</div>' +
     '</div>';
 }
+
 function shiftMonthKey(key, delta) {
     var parts = key.split('-');
-    var y = parseInt(parts[0], 10);
-    var m = parseInt(parts[1], 10);
+    var y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
     if (isNaN(y) || isNaN(m)) return key;
     m += delta;
     while (m < 1) { m += 12; y -= 1; }
@@ -3177,7 +3362,6 @@ function budgetsShiftMonth(delta) {
 function budgetsToggleCollapse() {
     state.budgetsCollapsed = !state.budgetsCollapsed;
     saveState();
-
     var wrap = document.querySelector('.budgets-collapse-wrap');
     var btn = document.querySelector('.budgets-toggle');
     if (wrap) wrap.classList.toggle('collapsed');
@@ -3187,131 +3371,82 @@ function budgetsToggleCollapse() {
 function openBudgetsMonthPicker() {
     var months = getAllMonthsWithBudgets();
     var currentKey = getCurrentMonthKey();
-
     if (months.indexOf(currentKey) === -1) months.push(currentKey);
     months.sort();
     months.reverse();
-
     var viewMonth = state.budgetsViewMonth || currentKey;
 
-    var html = '<h3>Выбрать месяц</h3>' +
-        '<div class="budgets-month-list">';
+    var html = '<h3>Выбрать месяц</h3><div class="budgets-month-list">';
     for (var i = 0; i < months.length; i++) {
         var mk = months[i];
-        var active = (mk === viewMonth) ? ' active' : '';
-        html += '<button type="button" class="budgets-month-item' + active + '" ' +
-            'data-action="budgets-month-set" data-month="' + esc(mk) + '">' +
-            formatMonthRu(mk) +
-        '</button>';
+        html += '<button type="button" class="budgets-month-item' + (mk === viewMonth ? ' active' : '') + '" data-action="budgets-month-set" data-month="' + esc(mk) + '">' + formatMonthRu(mk) + '</button>';
     }
     html += '</div>';
-
     showModal(html);
 }
 
 function budgetsSetMonth(key) {
-    if (!key) return;
-    if (key > getCurrentMonthKey()) return;
+    if (!key || key > getCurrentMonthKey()) return;
     state.budgetsViewMonth = key;
     saveState();
     hideModal();
     renderBalance(document.getElementById('mainContent'));
 }
+
 function openBudgetsEditModal() {
     var viewMonth = state.budgetsViewMonth || getCurrentMonthKey();
     var isCurrentMonth = (viewMonth === getCurrentMonthKey());
 
     var html = '<h3>Бюджеты на ' + formatMonthRu(viewMonth) + '</h3>';
-
-    if (!isCurrentMonth) {
-        html += '<p style="font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.4;">' +
-            'Редактирование прошлых месяцев. Изменения сохранятся только для этого месяца.' +
-        '</p>';
-    } else {
-        html += '<p style="font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.4;">' +
-            'Оставь поле пустым — бюджета не будет. Число — лимит в рублях.' +
-        '</p>';
-    }
-
+    html += '<p style="font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.4;">' +
+        (isCurrentMonth ? 'Оставь поле пустым — бюджета не будет.' : 'Редактирование прошлого месяца.') + '</p>';
     html += '<div style="display:flex;flex-direction:column;gap:10px;">';
 
     for (var i = 0; i < CATEGORIES.length; i++) {
         var cat = CATEGORIES[i];
         var currentLimit = getBudgetForCategory(cat.id, viewMonth);
         var value = (currentLimit !== null) ? String(currentLimit) : '';
-
         html += '<div style="display:flex;align-items:center;gap:10px;">' +
-            '<span style="width:34px;height:34px;border-radius:50%;' +
-                'display:inline-flex;align-items:center;justify-content:center;' +
-                'font-size:18px;background:' + cat.color + '33;flex-shrink:0;">' +
-                cat.icon +
-            '</span>' +
-            '<span style="flex:1;font-size:14px;color:var(--text);min-width:0;' +
-                'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-                esc(cat.name) +
-            '</span>' +
-            '<input type="text" inputmode="decimal" autocomplete="off" ' +
-                'data-budget-input="' + esc(cat.id) + '" ' +
-                'placeholder="0" value="' + esc(value) + '" ' +
-                'style="width:110px;margin:0;padding:10px;font-size:15px;text-align:right;">' +
+            '<span style="width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:18px;background:' + cat.color + '33;flex-shrink:0;">' + cat.icon + '</span>' +
+            '<span style="flex:1;font-size:14px;color:var(--text);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(cat.name) + '</span>' +
+            '<input type="text" inputmode="decimal" autocomplete="off" data-budget-input="' + esc(cat.id) + '" placeholder="0" value="' + esc(value) + '" style="width:110px;margin:0;padding:10px;font-size:15px;text-align:right;">' +
         '</div>';
     }
-
     html += '</div>';
-
-    html += '<button type="button" class="btn-full btn-primary" ' +
-        'data-action="budgets-save" data-month="' + esc(viewMonth) + '" ' +
-        'style="margin-top:16px;">Сохранить</button>';
-    html += '<button type="button" class="btn-full btn-outline" ' +
-        'data-action="close-modal">Отмена</button>';
-
+    html += '<button type="button" class="btn-full btn-primary" data-action="budgets-save" data-month="' + esc(viewMonth) + '" style="margin-top:16px;">Сохранить</button>';
+    html += '<button type="button" class="btn-full btn-outline" data-action="close-modal">Отмена</button>';
     showModal(html);
 }
 
 function saveBudgetsFromModal(monthKey) {
     if (!monthKey) return;
-
     var inputs = document.querySelectorAll('[data-budget-input]');
-    if (!inputs || inputs.length === 0) {
-        hideModal();
-        return;
-    }
+    if (!inputs || inputs.length === 0) { hideModal(); return; }
 
     for (var i = 0; i < inputs.length; i++) {
         var inp = inputs[i];
         var catId = inp.getAttribute('data-budget-input');
         if (!catId) continue;
-
         var raw = String(inp.value).replace(/\s/g, '').replace(',', '.').trim();
         var limit = 0;
-
         if (raw !== '') {
             var n = Number(raw);
-            if (!isFinite(n) || n < 0) {
-                alert('Проверь значения бюджетов. Только положительные числа.');
-                return;
-            }
+            if (!isFinite(n) || n < 0) { alert('Только положительные числа.'); return; }
             limit = n;
         }
-
         setBudgetLimit(catId, limit, monthKey);
     }
-
-    if (state.budgetsViewMonth === null) {
-        state.budgetsViewMonth = monthKey;
-    }
-
+    if (state.budgetsViewMonth === null) state.budgetsViewMonth = monthKey;
     saveState();
     hideModal();
     renderBalance(document.getElementById('mainContent'));
 }
+/* ============ НАСТРОЙКИ ============ */
 function renderSettings(c) {
     c.innerHTML =
         '<div class="card">' +
             '<div class="card-title" style="margin-bottom:15px">Управление данными</div>' +
-            '<p style="font-size:13px; color:var(--dim); margin:0 0 15px; line-height:1.5;">' +
-                'Все данные хранятся только на этом устройстве. Регулярно делай резервные копии.' +
-            '</p>' +
+            '<p style="font-size:13px; color:var(--dim); margin:0 0 15px; line-height:1.5;">Все данные хранятся только на этом устройстве. Регулярно делай резервные копии.</p>' +
             '<button type="button" class="btn-full btn-primary" data-action="export">💾 Экспорт (Скачать JSON)</button>' +
             '<button type="button" class="btn-full btn-outline" data-action="import">📥 Импорт (Загрузить JSON)</button>' +
             '<input type="file" id="importFile" accept=".json,application/json">' +
@@ -3322,43 +3457,29 @@ function renderSettings(c) {
         '</div>' +
         '<div class="card">' +
             '<div class="card-title">О приложении</div>' +
-            '<p style="font-size:12px; color:var(--dim); line-height:1.5; margin:8px 0 0;">' +
-                'Finance list<br>' +
-                'Локальное хранилище. Без серверов. Без рекламы.<br>' +
-                'Данные никогда не покидают твоё устройство.' +
-            '</p>' +
+            '<p style="font-size:12px; color:var(--dim); line-height:1.5; margin:8px 0 0;">Finance list<br>Локальное хранилище. Без серверов. Без рекламы.<br>Данные никогда не покидают твоё устройство.</p>' +
         '</div>';
 }
 
 function exportData() {
     var json = JSON.stringify(state, null, 2);
     var filename = 'finance_backup_' + new Date().toISOString().slice(0, 10) + '.json';
-
     try {
         var blob = new Blob([json], { type: 'application/json;charset=utf-8' });
         var url = URL.createObjectURL(blob);
         var a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(function () { try { URL.revokeObjectURL(url); } catch (_) {} }, 1500);
         return;
-    } catch (e) {
-        console.warn('[FinanceList] Blob export failed, using data URI', e);
-    }
-
+    } catch (e) { console.warn('[FinanceList] Blob export failed', e); }
     try {
         var dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
         var a2 = document.createElement('a');
-        a2.href = dataUri;
-        a2.download = filename;
-        document.body.appendChild(a2);
-        a2.click();
-        document.body.removeChild(a2);
+        a2.href = dataUri; a2.download = filename;
+        document.body.appendChild(a2); a2.click(); document.body.removeChild(a2);
     } catch (e2) {
-        alert('Экспорт не удался. Скопируй данные вручную из консоли.');
+        alert('Экспорт не удался.');
         console.log(json);
     }
 }
@@ -3366,58 +3487,38 @@ function exportData() {
 function importData() {
     var input = document.getElementById('importFile');
     if (!input || !input.files || !input.files[0]) return;
-
     var file = input.files[0];
     var reader = new FileReader();
-
     reader.onload = function (e) {
         try {
             var imported = JSON.parse(e.target.result);
             if (!imported || typeof imported !== 'object' || imported.balance === undefined) {
-                alert('Ошибка: неверный формат файла.');
-                return;
+                alert('Ошибка: неверный формат файла.'); return;
             }
-            showConfirm(
-                'Заменить все данные?',
-                'Текущие данные будут полностью заменены содержимым файла.',
-                function () {
-                    state = migrate(imported);
-                    saveState();
-                    switchTab('balance');
-                    alert('Данные успешно восстановлены!');
-                },
-                { danger: true, okLabel: 'Заменить' }
-            );
-        } catch (err) {
-            alert('Ошибка чтения файла: ' + err.message);
-        }
+            showConfirm('Заменить все данные?', 'Текущие данные будут полностью заменены.', function () {
+                state = migrate(imported);
+                saveState();
+                switchTab('balance');
+                alert('Данные восстановлены!');
+            }, { danger: true, okLabel: 'Заменить' });
+        } catch (err) { alert('Ошибка чтения: ' + err.message); }
     };
     reader.onerror = function () { alert('Не удалось прочитать файл.'); };
     reader.readAsText(file);
-
     try { input.value = ''; } catch (_) {}
 }
 
 function resetAll() {
-    showConfirm(
-        'Удалить все данные?',
-        'Будут удалены: баланс, долги, планы, история. Восстановить можно только из JSON-бэкапа.',
-        function () {
-            showConfirm(
-                'Последнее предупреждение',
-                'Точно удалить всё? Это необратимо.',
-                function () {
-                    state = emptyState();
-                    saveState();
-                    switchTab('balance');
-                },
-                { danger: true, okLabel: 'Удалить навсегда', hint: 'Тап мимо окна = отмена' }
-            );
-        },
-        { danger: true, okLabel: 'Продолжить' }
-    );
+    showConfirm('Удалить все данные?', 'Будут удалены: баланс, долги, планы, история, покупки.', function () {
+        showConfirm('Последнее предупреждение', 'Точно удалить всё?', function () {
+            state = emptyState();
+            saveState();
+            switchTab('balance');
+        }, { danger: true, okLabel: 'Удалить навсегда', hint: 'Тап мимо окна = отмена' });
+    }, { danger: true, okLabel: 'Продолжить' });
 }
 
+/* ============ ACTIONS ============ */
 var ACTIONS = {
     'op':     function (el) { doOp(Number(el.getAttribute('data-sign'))); },
     'filter': function (el) { setHistoryFilter(el.getAttribute('data-filter')); },
@@ -3434,16 +3535,13 @@ var ACTIONS = {
     'hist-date-clear': function () { clearHistoryDate(); },
 
     'clear-history-search': function () {
-        historySearch = '';
-        historyViewCount = 50;
+        historySearch = ''; historyViewCount = 50;
+        _animateList = true;
         renderBalance(document.getElementById('mainContent'));
     },
 
     'dp-select': function (el) {
-        var prefix = el.getAttribute('data-prefix');
-        var kind   = el.getAttribute('data-kind');
-        var value  = el.getAttribute('data-value');
-        datePickerSelect(prefix, kind, value);
+        datePickerSelect(el.getAttribute('data-prefix'), el.getAttribute('data-kind'), el.getAttribute('data-value'));
     },
 
     'history-start-select':  function (el) { startSelectionMode(el.getAttribute('data-id')); },
@@ -3460,46 +3558,50 @@ var ACTIONS = {
     'bulk-apply-delete':   function ()   { bulkApplyDelete(); },
 
     'edit-cat-pick': function (el) { editPickCategory(el.getAttribute('data-id')); },
-
     'history-edit':        function (el) { showEditHistoryItem(el.getAttribute('data-id')); },
     'save-edit-history':   function (el) { saveEditedHistory(el.getAttribute('data-id')); },
     'delete-edit-history': function (el) { deleteFromEdit(el.getAttribute('data-id')); },
 
-    'history-del': function (el) {
-        showDeleteHistoryItem(el.getAttribute('data-id'), { refund: false, restore: false });
-    },
+    'history-del': function (el) { showDeleteHistoryItem(el.getAttribute('data-id'), { refund: false, restore: false }); },
     'history-confirm-del': function (el) {
-        var id = el.getAttribute('data-id');
-        var refund  = el.getAttribute('data-refund')  === '1';
-        var restore = el.getAttribute('data-restore') === '1';
-        deleteHistoryItem(id, refund, restore);
+        deleteHistoryItem(el.getAttribute('data-id'), el.getAttribute('data-refund') === '1', el.getAttribute('data-restore') === '1');
     },
 
     'tf':           function (el) { setTimeframe(el.getAttribute('data-tf')); },
     'period-open':  function ()   { openPeriodPicker(); },
     'period-apply': function ()   { applyPeriod(); },
 
-    'budgets-toggle':       function ()   { budgetsToggleCollapse(); },
-    'budgets-month-prev':   function ()   { budgetsShiftMonth(-1); },
-    'budgets-month-next':   function ()   { budgetsShiftMonth(1); },
-    'budgets-month-open':   function ()   { openBudgetsMonthPicker(); },
-    'budgets-month-set':    function (el) { budgetsSetMonth(el.getAttribute('data-month')); },
-    'budgets-edit-open':    function ()   { openBudgetsEditModal(); },
-    'budgets-save':         function (el) { saveBudgetsFromModal(el.getAttribute('data-month')); },
+    'budgets-toggle':     function ()   { budgetsToggleCollapse(); },
+    'budgets-month-prev': function ()   { budgetsShiftMonth(-1); },
+    'budgets-month-next': function ()   { budgetsShiftMonth(1); },
+    'budgets-month-open': function ()   { openBudgetsMonthPicker(); },
+    'budgets-month-set':  function (el) { budgetsSetMonth(el.getAttribute('data-month')); },
+    'budgets-edit-open':  function ()   { openBudgetsEditModal(); },
+    'budgets-save':       function (el) { saveBudgetsFromModal(el.getAttribute('data-month')); },
 
     'add-debt':  function ()   { showAddDebt(); },
     'edit-debt': function (el) { editDebt(el.getAttribute('data-id')); },
-    'save-debt': function (el) { var id = el.getAttribute('data-id'); saveDebt(id || null); },
+    'save-debt': function (el) { saveDebt(el.getAttribute('data-id') || null); },
     'pay-debt':  function (el) { showPayDebt(el.getAttribute('data-id')); },
     'del-debt':  function (el) { delDebt(el.getAttribute('data-id')); },
 
     'add-plan':  function ()   { showAddPlan(); },
     'edit-plan': function (el) { editPlan(el.getAttribute('data-id')); },
-    'save-plan': function (el) { var id = el.getAttribute('data-id'); savePlan(id || null); },
+    'save-plan': function (el) { savePlan(el.getAttribute('data-id') || null); },
     'move-plan': function (el) { movePlan(el.getAttribute('data-id'), Number(el.getAttribute('data-dir'))); },
     'fund-plan': function (el) { showFundPlan(el.getAttribute('data-id')); },
     'save-fund': function (el) { fundPlan(el.getAttribute('data-id')); },
     'del-plan':  function (el) { delPlan(el.getAttribute('data-id')); },
+
+    /* Покупки */
+    'add-shopping':         function ()   { showAddShopping(); },
+    'shopping-toggle':      function (el) { toggleShoppingItem(el.getAttribute('data-id')); },
+    'del-shopping':         function (el) { delShopping(el.getAttribute('data-id')); },
+    'shopping-pick-cat':    function (el) { shoppingPickCat(el.getAttribute('data-id')); },
+    'save-shopping':        function (el) { saveShopping(el.getAttribute('data-id') || null); },
+    'shopping-convert':     function ()   { shoppingConvert(); },
+    'shopping-convert-confirm': function () { shoppingConvertConfirm(); },
+    'shopping-deselect':    function ()   { shoppingDeselect(); },
 
     'export':      function () { exportData(); },
     'import':      function () { var i = document.getElementById('importFile'); if (i) i.click(); },
@@ -3513,9 +3615,8 @@ var ACTIONS = {
     'debt-pay-confirm': function (el) {
         var id = el.getAttribute('data-id');
         var input = document.getElementById('debtPayAmount');
-        var amt = input ? input.value : '';
         hideModal();
-        payDebt(id, amt);
+        payDebt(id, input ? input.value : '');
     }
 };
 
@@ -3524,8 +3625,7 @@ function handleClick(e) {
     if (!t || typeof t.closest !== 'function') return;
     var el = t.closest('[data-action]');
     if (!el) return;
-    var action = el.getAttribute('data-action');
-    var fn = ACTIONS[action];
+    var fn = ACTIONS[el.getAttribute('data-action')];
     if (fn) fn(el);
 }
 
@@ -3539,30 +3639,20 @@ function handleModalChange(e) {
 function handleMainContentClick(e) {
     var t = e.target;
     if (!t) return;
-
-    if (t.id === 'chartCanvas') {
-        handleChartTap(e, t);
-        return;
-    }
-
+    if (t.id === 'chartCanvas') { handleChartTap(e, t); return; }
     if (typeof t.closest !== 'function') return;
     var el = t.closest('[data-action]');
     if (!el) return;
-
     var action = el.getAttribute('data-action');
 
     if (action === 'history-edit' && shouldBlockEditClick()) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
+        e.preventDefault(); e.stopPropagation(); return;
     }
-
     if (selectionMode && (action === 'history-edit' || action === 'history-toggle-select')) {
         var id = el.getAttribute('data-id');
         if (id) toggleSelect(id);
         return;
     }
-
     var fn = ACTIONS[action];
     if (fn) fn(el);
 }
@@ -3584,9 +3674,11 @@ function bindEvents() {
     document.getElementById('modalOverlay').addEventListener('click', function (e) {
         if (e.target && e.target.id === 'modalOverlay') {
             _pendingOp = null;
+            _shopTempState = null;
             resetDatePickerState('debt');
             resetDatePickerState('edit');
             resetDatePickerState('bulk');
+            resetDatePickerState('shop');
             hideModal();
             return;
         }
@@ -3602,13 +3694,12 @@ function bindEvents() {
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             if (modalVisible) {
-                _pendingOp = null;
-                resetDatePickerState('debt');
-                resetDatePickerState('edit');
-                resetDatePickerState('bulk');
+                _pendingOp = null; _shopTempState = null;
                 hideModal();
             } else if (selectionMode) {
                 exitSelectionMode();
+            } else if (shoppingSelected.length > 0) {
+                shoppingDeselect();
             } else {
                 hideChartTooltip();
             }

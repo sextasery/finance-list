@@ -35,6 +35,7 @@ body {
     border-radius: 4px;
 }
 
+/* HEADER */
 header {
     padding: 14px 15px;
     background: linear-gradient(180deg, rgba(26,29,36,1) 0%, rgba(15,17,21,0) 100%);
@@ -70,10 +71,11 @@ header {
 .debt-box .stat-value { color: var(--red); }
 .plans-box .stat-value { color: var(--green); }
 
+/* NAV */
 .nav-tabs {
     display: flex;
-    padding: 0 8px;
-    gap: 4px;
+    padding: 0 6px;
+    gap: 2px;
     border-bottom: 1px solid var(--border);
     background: var(--bg);
     flex-shrink: 0;
@@ -84,15 +86,19 @@ header {
     border: none;
     color: var(--dim);
     padding: 14px 0;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     border-bottom: 2px solid transparent;
     min-height: var(--min-touch);
     font-family: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .tab-btn.active { color: var(--text); border-bottom-color: var(--blue); }
 
+/* FILTERS BAR */
 .filters-bar {
     display: none;
     padding: 10px 15px;
@@ -127,6 +133,7 @@ header {
     font-weight: bold;
 }
 
+/* CONTENT */
 .content {
     flex: 1 1 auto;
     overflow-y: auto;
@@ -165,9 +172,8 @@ header {
     padding: 0;
     font-family: inherit;
 }
-/* =====================================================
-   СПИСКИ
-   ===================================================== */
+
+/* LISTS */
 .list-item {
     display: flex;
     justify-content: space-between;
@@ -266,9 +272,7 @@ header {
 }
 .history-del-btn:active { border-color: var(--red); color: var(--red); }
 
-/* =====================================================
-   РЕЖИМ ВЫДЕЛЕНИЯ
-   ===================================================== */
+/* ВЫДЕЛЕНИЕ */
 .list-item.selectable {
     cursor: pointer;
     padding-left: 44px;
@@ -351,9 +355,8 @@ header {
     color: var(--red);
 }
 .selection-bar button.danger:active { background: rgba(255,71,87,0.22); }
-/* =====================================================
-   БЕЙДЖИ КАТЕГОРИЙ
-   ===================================================== */
+
+/* БЕЙДЖИ КАТЕГОРИЙ */
 .cat-badge {
     display: inline-block;
     font-size: 10px;
@@ -368,19 +371,20 @@ header {
 .cat-badge.things       { background: rgba(255,107,157,0.18); color: #ff6b9d; }
 .cat-badge.housing      { background: rgba(38,222,129,0.18);  color: #26de81; }
 .cat-badge.transport    { background: rgba(69,170,242,0.18);  color: #45aaf2; }
+.cat-badge.pharmacy     { background: rgba(0,210,106,0.2);   color: #00d26a; }
 .cat-badge.alcohol      { background: rgba(247,183,49,0.18);  color: #f7b731; }
+.cat-badge.sigi         { background: rgba(255,120,60,0.2);  color: #ff783c; }
 .cat-badge.weed         { background: rgba(32,191,107,0.18);  color: #20bf6b; }
 .cat-badge.gaba         { background: rgba(184,165,94,0.18);  color: #b8a55e; }
 .cat-badge.synth        { background: rgba(91,141,255,0.20);  color: #5b8dff; }
+.cat-badge.drugs        { background: rgba(197,108,240,0.2);  color: #c56cf0; }
 .cat-badge.tariffs      { background: rgba(165,94,234,0.18);  color: #a55eea; }
 .cat-badge.other        { background: rgba(119,140,163,0.18); color: #778ca3; }
 .cat-badge.salary       { background: rgba(0,210,106,0.18);   color: #00d26a; }
 .cat-badge.grandma      { background: rgba(74,222,128,0.18);  color: #4ade80; }
 .cat-badge.other-income { background: rgba(134,239,172,0.18); color: #86efac; }
 
-/* =====================================================
-   ПОИСК + ФИЛЬТР КАТЕГОРИЙ
-   ===================================================== */
+/* ПОИСК */
 .history-tools {
     display: flex;
     gap: 8px;
@@ -452,10 +456,33 @@ header {
     font-size: 12px;
     padding: 12px 0 4px;
 }
+.history-card-title {
+    padding: 2px 4px;
+    margin-bottom: 14px;
+    line-height: 1.4;
+    letter-spacing: 0.2px;
+}
 
-/* =====================================================
-   ИНПУТЫ
-   ===================================================== */
+.item-sub-plan {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 8px;
+    margin-bottom: 6px;
+    padding-left: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.item-sub-plan::before {
+    content: '📅';
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+/* ИНПУТЫ */
 input {
     width: 100%;
     background: #0a0c10;
@@ -483,9 +510,7 @@ input[type="file"] { display: none; }
     margin-top: 4px;
 }
 
-/* =====================================================
-   СЕТКА ВЫБОРА ДАТЫ
-   ===================================================== */
+/* DATE PICKER */
 .date-picker {
     display: flex;
     flex-direction: column;
@@ -540,9 +565,8 @@ input[type="file"] { display: none; }
     font-weight: bold;
     border-color: var(--blue);
 }
-/* =====================================================
-   КНОПКИ
-   ===================================================== */
+
+/* КНОПКИ */
 .btn-full {
     width: 100%;
     padding: 14px;
@@ -569,9 +593,7 @@ input[type="file"] { display: none; }
     color: var(--dim);
 }
 
-/* =====================================================
-   ПРОЧЕЕ
-   ===================================================== */
+/* ПРОЧЕЕ */
 .empty-state {
     text-align: center;
     color: var(--dim);
@@ -615,7 +637,6 @@ input[type="file"] { display: none; }
     -webkit-user-select: text;
     user-select: text;
 }
-
 /* =====================================================
    МОДАЛКИ
    ===================================================== */
@@ -858,9 +879,7 @@ input[type="file"] { display: none; }
 }
 .modal-x:active { color: var(--red); border-color: var(--red); }
 
-/* =====================================================
-   АНАЛИТИКА
-   ===================================================== */
+/* АНАЛИТИКА */
 .tf-switcher {
     display: flex;
     gap: 6px;
@@ -1013,126 +1032,7 @@ input[type="file"] { display: none; }
     flex-shrink: 0;
 }
 
-/* =====================================================
-   АНАЛИЗ ПЕРИОДА — свечи
-   ===================================================== */
-.period-block {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255,255,255,0.05);
-}
-.period-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-}
-.period-range {
-    font-size: 13px;
-    color: var(--text);
-    font-weight: 600;
-}
-.period-range .pr-label {
-    font-size: 11px;
-    color: var(--dim);
-    font-weight: normal;
-    display: block;
-    margin-bottom: 2px;
-}
-.period-edit-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--blue);
-    padding: 8px 14px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    min-height: 40px;
-    white-space: nowrap;
-}
-.period-edit-btn:active { background: rgba(0,210,255,0.08); }
-
-.candles-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 6px;
-}
-.candles-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    min-height: 200px;
-    padding: 4px 0;
-}
-.candle {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    flex-shrink: 0;
-    width: 48px;
-}
-.candle-amount {
-    font-size: 10px;
-    color: var(--text);
-    font-weight: 600;
-    white-space: nowrap;
-    margin-bottom: 4px;
-    text-align: center;
-}
-.candle-bar {
-    width: 32px;
-    border-radius: 6px 6px 0 0;
-    min-height: 3px;
-    transition: height 0.3s;
-}
-.candle-bar.expense { background: linear-gradient(180deg, #ff6b7a 0%, #ff4757 100%); }
-.candle-bar.income  { background: linear-gradient(180deg, #4ade80 0%, #00d26a 100%); }
-.candle-bar.empty   { background: rgba(119,140,163,0.35); }
-.candle-icon {
-    font-size: 20px;
-    margin-top: 6px;
-    line-height: 1;
-}
-.candle-pct {
-    font-size: 11px;
-    color: var(--dim);
-    margin-top: 2px;
-    font-weight: 600;
-}
-
-.period-legend {
-    display: flex;
-    gap: 14px;
-    margin-top: 12px;
-    font-size: 11px;
-    color: var(--dim);
-}
-.period-legend .pl-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-.period-legend .pl-dot {
-    width: 10px; height: 10px;
-    border-radius: 3px;
-}
-.period-legend .pl-dot.expense { background: #ff4757; }
-.period-legend .pl-dot.income  { background: #00d26a; }
-.period-legend .pl-dot.empty   { background: rgba(119,140,163,0.5); }
-
-/* =====================================================
-   АНАЛИЗ ПЕРИОДА — свечи
-   ===================================================== */
-.period-block {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255,255,255,0.05);
-}
+/* АНАЛИЗ ПЕРИОДА */
 .period-empty {
     text-align: center;
     padding: 24px 0;
@@ -1260,7 +1160,6 @@ input[type="file"] { display: none; }
 .period-legend .pl-dot.income  { background: #00d26a; }
 .period-legend .pl-dot.empty   { background: rgba(119,140,163,0.5); }
 
-/* Итоги периода */
 .period-totals {
     margin-top: 14px;
     padding-top: 14px;
@@ -1295,35 +1194,6 @@ input[type="file"] { display: none; }
     font-size: 17px;
 }
 
-.cat-badge.drugs { background: rgba(197,108,240,0.2); color: #c56cf0; }
-
-
-.history-card-title {
-    padding: 2px 4px;
-    margin-bottom: 14px;
-    line-height: 1.4;
-    letter-spacing: 0.2px;
-}
-
-.item-sub-plan {
-    font-size: 11px;
-    color: var(--dim);
-    margin-top: 8px;
-    margin-bottom: 6px;
-    padding-left: 2px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.item-sub-plan::before {
-    content: '📅';
-    font-size: 12px;
-    opacity: 0.7;
-}
-
 .period-picker-label {
     text-align: center;
     font-size: 14px;
@@ -1341,14 +1211,7 @@ input[type="file"] { display: none; }
     border-top: none;
 }
 
-.cat-badge.sigi { background: rgba(255,120,60,0.2); color: #ff783c; }
-
-.cat-badge.pharmacy { background: rgba(0,210,106,0.2); color: #00d26a; }
-
-
-/* =====================================================
-   БЮДЖЕТЫ
-   ===================================================== */
+/* БЮДЖЕТЫ */
 .budgets-header {
     display: flex;
     justify-content: space-between;
@@ -1525,11 +1388,122 @@ input[type="file"] { display: none; }
 .budgets-month-item.active { border-color: var(--blue); color: var(--blue); font-weight: 700; }
 .budgets-month-item:active { background: rgba(0,210,255,0.06); }
 
-/* =========================================================================
-   АНИМАЦИИ
-   ========================================================================= */
+/* =====================================================
+   СПИСОК ПОКУПОК
+   ===================================================== */
+.shopping-bar {
+    position: sticky;
+    top: 6px;
+    z-index: 50;
+    background: rgba(0,210,255,0.08);
+    border: 1px solid rgba(0,210,255,0.35);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 10px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    flex-wrap: wrap;
+}
+.shopping-bar.visible { display: flex; }
+.shopping-bar .ssb-info {
+    flex: 1 1 auto;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--blue);
+}
+.shopping-bar .ssb-info b { color: var(--blue); font-weight: 700; }
+.shopping-convert-btn {
+    background: var(--blue);
+    border: none;
+    color: #000;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    font-family: inherit;
+    cursor: pointer;
+    min-height: 40px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.shopping-convert-btn:active { opacity: 0.85; }
 
-/* Карточки появляются при переключении табов (каскад) */
+.shopping-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+    border-radius: 8px;
+    margin: 0 -8px;
+    transition: background 0.15s;
+}
+.shopping-item:last-child { border-bottom: none; }
+.shopping-item:active { background: rgba(0,210,255,0.06); }
+.shopping-item.checked { background: rgba(0,210,255,0.08); }
+.shopping-item.blocked { opacity: 0.35; }
+
+.shopping-checkbox {
+    width: 24px; height: 24px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: transparent;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    pointer-events: none;
+}
+.shopping-item.checked .shopping-checkbox {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #000;
+}
+
+.shopping-name {
+    flex: 1;
+    font-size: 15px;
+    color: var(--text);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.shopping-date {
+    font-size: 11px;
+    color: var(--dim);
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+.shopping-del {
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0;
+    line-height: 1;
+    font-family: inherit;
+}
+.shopping-del:active { color: var(--red); }
+
+/* =====================================================
+   АНИМАЦИИ
+   ===================================================== */
 .content.tab-enter > .card {
     animation: fsCardIn 300ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
 }
@@ -1544,7 +1518,6 @@ input[type="file"] { display: none; }
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Модалки: overlay fade + modal scale */
 .modal-overlay {
     display: block !important;
     opacity: 0;
@@ -1564,7 +1537,6 @@ input[type="file"] { display: none; }
     to   { transform: scale(1);    opacity: 1; }
 }
 
-/* Вспышка новой записи в истории */
 .list-item.flash-new {
     animation: fsFlashNew 900ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
@@ -1580,7 +1552,6 @@ input[type="file"] { display: none; }
     100% { background: transparent; }
 }
 
-/* Свечи растут снизу по очереди */
 .candle-bar {
     transform-origin: bottom center;
     animation: fsCandleGrow 400ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
@@ -1607,7 +1578,6 @@ input[type="file"] { display: none; }
     to   { transform: scaleY(1); }
 }
 
-/* Список истории плавно появляется при поиске/фильтре */
 #historyList.animate-in {
     animation: fsListIn 200ms ease;
 }
