@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0f1115">
+<meta name="format-detection" content="telephone=no">
+<title>Finance list</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="errScreen"></div>
+
+<header>
+    <div class="stat-box balance-box">
+        <div class="stat-label">Полный остаток</div>
+        <div class="stat-value" id="totalBalance">0 ₽</div>
+    </div>
+    <div class="stat-box debt-box">
+        <div class="stat-label">Мои долги</div>
+        <div class="stat-value" id="totalDebt">0 ₽</div>
+    </div>
+    <div class="stat-box plans-box">
+        <div class="stat-label">Планы (цели)</div>
+        <div class="stat-value" id="totalPlans">0 ₽</div>
+    </div>
+</header>
+
+<div class="nav-tabs" id="navTabs">
+    <button class="tab-btn active" data-tab="balance" type="button">Остаток</button>
+    <button class="tab-btn" data-tab="debts" type="button">Долги</button>
+    <button class="tab-btn" data-tab="plans" type="button">Планы</button>
+    <button class="tab-btn" data-tab="shopping" type="button">🛒</button>
+    <button class="tab-btn" data-tab="analytics" type="button">📊</button>
+    <button class="tab-btn" data-tab="settings" type="button">⚙️</button>
+</div>
+
+<div class="filters-bar" id="filtersBar"></div>
+
+<div class="content" id="mainContent"></div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent"></div>
+</div>
+
+<div class="chart-tooltip" id="chartTooltip" style="display:none;"></div>
+
+<script src="script.js"></script>
+<script src="debug.js"></script>
+</body>
+</html>
