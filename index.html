@@ -13,6 +13,15 @@
 
 <div id="errScreen"></div>
 
+<div id="integrityBanner" class="integrity-banner" style="display:none;">
+    <div class="ib-icon">⚠️</div>
+    <div class="ib-text">
+        <b>Баланс и история разошлись</b>
+        <span id="integrityDiff">—</span>
+    </div>
+    <button type="button" class="ib-close" data-action="integrity-close" aria-label="Закрыть">✕</button>
+</div>
+
 <header>
     <div class="stat-box balance-box">
         <div class="stat-label">Полный остаток</div>
@@ -46,6 +55,8 @@
 </div>
 
 <div class="chart-tooltip" id="chartTooltip" style="display:none;"></div>
+
+<div class="toast" id="toast" style="display:none;"></div>
 
 <script src="script.js"></script>
 <script src="debug.js"></script>
