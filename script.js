@@ -83,6 +83,8 @@ var currentTab = 'balance';
 var historyFilter = 'all';
 var historySearch = '';
 var historyCatFilter = [];
+var historyDateFrom = null;
+var historyDateTo = null;
 var historyViewCount = 50;
 var selectionMode = false;
 var selectedIds = [];
@@ -373,6 +375,55 @@ function attachAutocomplete(inputId, type) {
 }
 
 /* ============ BALANCE TAB ============ */
+/* ============ ФИЛЬТРАЦИЯ ИСТОРИИ ============ */
+function getFilteredHistory() {
+    var filtered = state.history;
+
+    // Фильтр по типу (Доход/Расход/Перевод)
+    if (historyFilter === TYPE.INCOME) {
+        filtered = filtered.filter(function (h) { return h.amount > 0; });
+    } else if (historyFilter === TYPE.EXPENSE) {
+        filtered = filtered.filter(function (h) { return h.amount < 0; });
+    } else if (historyFilter === TYPE.TRANSFER) {
+        filtered = filtered.filter(function (h) { return h.type === TYPE.TRANSFER; });
+    }
+
+    // Фильтр по категориям
+    if (historyCatFilter.length > 0) {
+        filtered = filtered.filter(function (h) {
+            return historyCatFilter.indexOf(h.categoryId) !== -1;
+        });
+    }
+
+    // Фильтр по датам
+    if (historyDateFrom && historyDateTo) {
+        var fromTs = new Date(historyDateFrom).getTime();
+        var toTs = new Date(historyDateTo).getTime();
+        filtered = filtered.filter(function (h) {
+            var ts = new Date(h.date).getTime();
+            return ts >= fromTs && ts <= toTs;
+        });
+    }
+
+    // Поиск по тексту
+    var query = historySearch.trim().toLowerCase();
+    if (query) {
+        filtered = filtered.filter(function (h) {
+            if ((h.desc || '').toLowerCase().indexOf(query) !== -1) return true;
+            var amtStr = String(Math.abs(Math.round(h.amount)));
+            if (amtStr.indexOf(query) !== -1) return true;
+            return false;
+        });
+    }
+
+    // Сортировка: новые сверху
+    filtered = filtered.slice().sort(function (a, b) {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+
+    return filtered;
+}
+
 function renderBalance(c) {
     var formHtml = '<div class="card">' +
         '<div class="card-title" style="margin-bottom:10px">Операция с остатком</div>' +
