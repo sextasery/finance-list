@@ -501,6 +501,36 @@ function renderBalance(c) {
     attachLongPressHandlers();
 }
 
+/* ============ ПОИСК ============ */
+var _searchTimer = null;
+function handleHistorySearch(e) {
+    historySearch = e.target.value;
+    historyViewCount = 50;
+    
+    if (_searchTimer) clearTimeout(_searchTimer);
+    
+    // Debounce 200ms чтобы не перерисовывать список на каждом чихе
+    _searchTimer = setTimeout(function () {
+        var c = document.getElementById('mainContent');
+        if (!c) return;
+        
+        // Сохраняем скролл, чтобы не прыгало вверх
+        var scrollTop = c.scrollTop;
+        _animateList = true;
+        
+        renderBalance(c);
+        
+        // Восстанавливаем скролл и фокус
+        c.scrollTop = scrollTop;
+        var el = document.getElementById('historySearch');
+        if (el) {
+            el.focus();
+            var len = el.value.length;
+            try { el.setSelectionRange(len, len); } catch (_) {}
+        }
+    }, 200);
+}
+
 function renderHistoryItem(h) {
     var isPos = h.amount > 0;
     var color = isPos ? 'var(--green)' : 'var(--red)';
