@@ -649,8 +649,15 @@ function attachLongPressHandlers() {
             if (el._lpAttached) return;
             el._lpAttached = true;
 
-            function start() {
+            function start(e) {
                 _longPressFired = false;
+                if (e.touches) {
+                    el._startX = e.touches[0].clientX;
+                    el._startY = e.touches[0].clientY;
+                } else {
+                    el._startX = e.clientX;
+                    el._startY = e.clientY;
+                }
                 _longPressTimer = setTimeout(function () {
                     _longPressFired = true;
                     var id = el.getAttribute('data-id');
@@ -660,20 +667,29 @@ function attachLongPressHandlers() {
             function cancel() {
                 if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
             }
+            function move(e) {
+                if (!_longPressTimer) return;
+                var x, y;
+                if (e.touches) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
+                else { x = e.clientX; y = e.clientY; }
+                var dx = Math.abs(x - el._startX);
+                var dy = Math.abs(y - el._startY);
+                if (dx > 15 || dy > 15) cancel();
+            }
 
             el.addEventListener('touchstart', start, { passive: true });
             el.addEventListener('touchend', cancel);
             el.addEventListener('touchcancel', cancel);
-            el.addEventListener('touchmove', cancel);
+            el.addEventListener('touchmove', move, { passive: true });
             el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
-            // Поддержка мыши для ПК
             el.addEventListener('mousedown', function(e) {
                 if (e.button !== 0) return;
-                start();
+                start(e);
             });
             el.addEventListener('mouseup', cancel);
             el.addEventListener('mouseleave', cancel);
+            el.addEventListener('mousemove', move);
         })(items[i]);
     }
 }
@@ -700,31 +716,103 @@ function buildDatePickerHtml(prefix, iso) {
     var maxDay = daysInMonth(st.month, st.year);
     if (st.day > maxDay) st.day = maxDay;
 
-    var dayCells = '';
+    var dayItems = '';
     for (var d = 1; d <= maxDay; d++) {
-        dayCells += '<button type="button" class="date-picker-cell ' + (d === st.day ? 'active' : '') + '" ' +
-            'data-action="dp-select" data-prefix="' + prefix + '" data-kind="day" data-value="' + d + '">' + d + '</button>';
+        dayItems += '<div class="picker-item ' + (d === st.day ? 'active' : '') + '" data-action="dp-select" data-prefix="' + prefix + '" data-kind="day" data-value="' + d + '">' + (d < 10 ? '0'+d : d) + '</div>';
     }
 
-    var monthCells = '';
+    var monthItems = '';
     for (var m = 1; m <= 12; m++) {
-        monthCells += '<button type="button" class="date-picker-cell ' + (m === st.month ? 'active' : '') + '" ' +
-            'data-action="dp-select" data-prefix="' + prefix + '" data-kind="month" data-value="' + m + '">' +
-            MONTHS_FULL[m - 1] + '</button>';
+        monthItems += '<div class="picker-item ' + (m === st.month ? 'active' : '') + '" data-action="dp-select" data-prefix="' + prefix + '" data-kind="month" data-value="' + m + '">' + (m < 10 ? '0'+m : m) + '</div>';
     }
 
-    var yearCells = '';
+    var yearItems = '';
     for (var y = 0; y < years.length; y++) {
-        yearCells += '<button type="button" class="date-picker-cell ' + (years[y] === st.year ? 'active' : '') + '" ' +
-            'data-action="dp-select" data-prefix="' + prefix + '" data-kind="year" data-value="' + years[y] + '">' +
-            years[y] + '</button>';
+        yearItems += '<div class="picker-item ' + (years[y] === st.year ? 'active' : '') + '" data-action="dp-select" data-prefix="' + prefix + '" data-kind="year" data-value="' + years[y] + '">' + years[y] + '</div>';
     }
 
-    return '<div class="date-picker" data-prefix="' + esc(prefix) + '">' +
-        '<div class="date-picker-row"><div class="date-picker-label">День</div><div class="date-picker-grid days">' + dayCells + '</div></div>' +
-        '<div class="date-picker-row"><div class="date-picker-label">Месяц</div><div class="date-picker-grid months">' + monthCells + '</div></div>' +
-        '<div class="date-picker-row"><div class="date-picker-label">Год</div><div class="date-picker-grid years">' + yearCells + '</div></div>' +
+    return '<div class="date-picker" data-prefix="' + prefix + '">' +
+        '<div class="picker-wrap">' +
+            '<div class="picker-highlight"></div>' +
+            '<div class="picker-col" data-kind="day">' +
+                '<div class="picker-padding"></div>' + dayItems + '<div class="picker-padding"></div>' +
+            '</div>' +
+            '<div class="picker-col" data-kind="month">' +
+                '<div class="picker-padding"></div>' + monthItems + '<div class="picker-padding"></div>' +
+            '</div>' +
+            '<div class="picker-col" data-kind="year">' +
+                '<div class="picker-padding"></div>' + yearItems + '<div class="picker-padding"></div>' +
+            '</div>' +
+        '</div>' +
     '</div>';
+}
+
+function initDatePickers() {
+    var cols = document.querySelectorAll('.picker-col');
+    for (var c = 0; c < cols.length; c++) {
+        (function(col) {
+            if (col._initialized) return;
+            col._initialized = true;
+            
+            var prefix = col.closest('.date-picker').getAttribute('data-prefix');
+            var kind = col.getAttribute('data-kind');
+            var activeItem = col.querySelector('.picker-item.active');
+            
+            if (activeItem) {
+                setTimeout(function() { col.scrollTop = activeItem.offsetTop - 50; }, 10);
+            }
+            
+            var scrollTimer;
+            col.addEventListener('scroll', function() {
+                clearTimeout(scrollTimer);
+                scrollTimer = setTimeout(function() {
+                    var centerY = col.scrollTop + 50;
+                    var items = col.querySelectorAll('.picker-item');
+                    var closestItem = null;
+                    var minDiff = Infinity;
+                    
+                    for (var i = 0; i < items.length; i++) {
+                        var itemCenter = items[i].offsetTop + 25;
+                        var diff = Math.abs(centerY - itemCenter);
+                        if (diff < minDiff) { minDiff = diff; closestItem = items[i]; }
+                    }
+                    
+                    if (closestItem && !closestItem.classList.contains('active')) {
+                        for (var j=0; j<items.length; j++) items[j].classList.remove('active');
+                        closestItem.classList.add('active');
+                        
+                        var val = parseInt(closestItem.getAttribute('data-value'), 10);
+                        var st = _datePickerState[prefix];
+                        if (st) {
+                            if (kind === 'day') st.day = val;
+                            else if (kind === 'month') st.month = val;
+                            else if (kind === 'year') st.year = val;
+                            
+                            if (kind === 'month' || kind === 'year') {
+                                var maxDay = daysInMonth(st.month, st.year);
+                                if (st.day > maxDay) {
+                                    st.day = maxDay;
+                                    var dayCol = col.closest('.picker-wrap').querySelector('[data-kind="day"]');
+                                    if (dayCol) {
+                                        var dayItems = '';
+                                        for (var d = 1; d <= maxDay; d++) {
+                                            dayItems += '<div class="picker-item ' + (d === st.day ? 'active' : '') + '" data-action="dp-select" data-prefix="' + prefix + '" data-kind="day" data-value="' + d + '">' + (d < 10 ? '0'+d : d) + '</div>';
+                                        }
+                                        dayCol.innerHTML = '<div class="picker-padding"></div>' + dayItems + '<div class="picker-padding"></div>';
+                                        // ВМЕСТО повторного вызова просто скроллим к новому активному дню
+                                        var newActive = dayCol.querySelector('.picker-item.active');
+                                        if (newActive) {
+                                            setTimeout(function() { dayCol.scrollTop = newActive.offsetTop - 50; }, 10);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }, 100);
+            }, { passive: true });
+        })(cols[c]);
+    }
 }
 
 function datePickerSelect(prefix, kind, value) {
@@ -742,45 +830,35 @@ function rerenderDatePicker(prefix) {
     var host = document.querySelector('.date-picker[data-prefix="' + prefix + '"]');
     if (!host) return;
 
-    var years = getYearRange();
     var maxDay = daysInMonth(st.month, st.year);
     if (st.day > maxDay) st.day = maxDay;
 
-    var dayCells = '';
-    for (var d = 1; d <= maxDay; d++) {
-        dayCells += '<button type="button" class="date-picker-cell ' + (d === st.day ? 'active' : '') + '" ' +
-            'data-action="dp-select" data-prefix="' + prefix + '" data-kind="day" data-value="' + d + '">' + d + '</button>';
-    }
-    var monthCells = '';
-    for (var m = 1; m <= 12; m++) {
-        monthCells += '<button type="button" class="date-picker-cell ' + (m === st.month ? 'active' : '') + '" ' +
-            'data-action="dp-select" data-prefix="' + prefix + '" data-kind="month" data-value="' + m + '">' +
-            MONTHS_FULL[m - 1] + '</button>';
-    }
-    var yearCells = '';
-    for (var y = 0; y < years.length; y++) {
-        yearCells += '<button type="button" class="date-picker-cell ' + (years[y] === st.year ? 'active' : '') + '" ' +
-            'data-action="dp-select" data-prefix="' + prefix + '" data-kind="year" data-value="' + years[y] + '">' +
-            years[y] + '</button>';
+    var dayCol = host.querySelector('[data-kind="day"]');
+    var monthCol = host.querySelector('[data-kind="month"]');
+    var yearCol = host.querySelector('[data-kind="year"]');
+
+    // Перестраиваем дни, если изменился месяц/год (количество дней)
+    if (dayCol && dayCol.children.length - 2 !== maxDay) {
+        var dayItems = '';
+        for (var d = 1; d <= maxDay; d++) {
+            dayItems += '<div class="picker-item ' + (d === st.day ? 'active' : '') + '" data-action="dp-select" data-prefix="' + prefix + '" data-kind="day" data-value="' + d + '">' + (d < 10 ? '0'+d : d) + '</div>';
+        }
+        dayCol.innerHTML = '<div class="picker-padding"></div>' + dayItems + '<div class="picker-padding"></div>';
     }
 
-    var dayGrid = host.querySelector('.date-picker-grid.days');
-    var monthGrid = host.querySelector('.date-picker-grid.months');
-    var yearGrid = host.querySelector('.date-picker-grid.years');
-
-    if (dayGrid)    dayGrid.innerHTML = dayCells;
-    if (monthGrid)  monthGrid.innerHTML = monthCells;
-    if (yearGrid)   yearGrid.innerHTML = yearCells;
-
-    // Автоскролл к выбранному элементу
-    setTimeout(function() {
-        var activeD = host.querySelector('.date-picker-grid.days .active');
-        if (activeD) activeD.scrollIntoView({ block: 'nearest', inline: 'center' });
-        var activeM = host.querySelector('.date-picker-grid.months .active');
-        if (activeM) activeM.scrollIntoView({ block: 'nearest', inline: 'center' });
-        var activeY = host.querySelector('.date-picker-grid.years .active');
-        if (activeY) activeY.scrollIntoView({ block: 'nearest', inline: 'center' });
-    }, 50);
+    // Прокручиваем к выбранным значениям
+    if (dayCol) {
+        var active = dayCol.querySelector('.picker-item[data-value="' + st.day + '"]');
+        if (active) dayCol.scrollTop = active.offsetTop - 50;
+    }
+    if (monthCol) {
+        var active = monthCol.querySelector('.picker-item[data-value="' + st.month + '"]');
+        if (active) monthCol.scrollTop = active.offsetTop - 50;
+    }
+    if (yearCol) {
+        var active = yearCol.querySelector('.picker-item[data-value="' + st.year + '"]');
+        if (active) yearCol.scrollTop = active.offsetTop - 50;
+    }
 }
 
 function readDatePicker(prefix, sourceIso) {
@@ -801,16 +879,23 @@ var _opSelectedDate = null;
 
 function renderBalance(c) {
     var savedScroll = c.scrollTop;
-    var displayDate = _opSelectedDate ? formatDate(_opSelectedDate) : 'Сегодня';
     
+    var isRemembered = state.opDateRemembered || false;
+    var currentOpDate = _opSelectedDate || new Date().toISOString();
+    var displayDate = formatDate(currentOpDate);
+    var pinStyle = isRemembered ? 'background:rgba(0,210,255,0.15); border-color:var(--blue); color:var(--blue);' : '';
+
     var formHtml =
         '<div class="card">' +
-            '<div class="card-title" style="margin-bottom:10px">Операция с остатком</div>' +
+            '<div class="card-title" style="margin-bottom:10px">Создать операцию</div>' +
             '<input type="text" id="opAmount" placeholder="Сумма" inputmode="decimal" autocomplete="off">' +
             '<input type="text" id="opDesc" placeholder="Название" autocomplete="off">' +
-            '<div style="display:flex; gap:10px; margin-bottom:10px;">' +
-                '<input type="text" id="opTime" placeholder="Время (ЧЧ:ММ)" autocomplete="off" value="' + formatTimeFromIso(new Date().toISOString()) + '" style="margin:0;">' +
-                '<button type="button" class="btn-full btn-outline" style="margin:0; width:auto; min-width:120px; padding:0 15px;" data-action="op-date-open">📅 ' + displayDate + '</button>' +
+            '<div style="display:flex; gap:8px; margin-bottom:10px; align-items:stretch;">' +
+                '<input type="text" id="opTime" placeholder="ЧЧ:ММ" autocomplete="off" value="' + formatTimeFromIso(new Date().toISOString()) + '" style="margin:0; width:80px; flex-shrink:0; padding:12px 8px;">' +
+                '<button type="button" class="btn-full btn-outline" style="margin:0; flex:1; padding:0 10px; font-size:13px;" data-action="op-date-open">' +
+                    '📅 <span id="opDateLabel">' + displayDate + '</span>' +
+                '</button>' +
+                '<button type="button" class="btn-full btn-outline" style="margin:0; width:44px; flex-shrink:0; padding:0; font-size:16px; ' + pinStyle + '" data-action="op-date-toggle-remember" id="opDatePin" title="Запомнить дату">📌</button>' +
             '</div>' +
             '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">' +
                 '<button type="button" class="btn-full btn-primary" data-action="op" data-sign="1">+ Пополнить</button>' +
@@ -1010,7 +1095,11 @@ function commitOp(sign, amt, desc, categoryId, delta, timeStr) {
 
     state.history.unshift(record);
     _flashId = record.id;
-    _opSelectedDate = null; // сбрасываем дату
+
+    // Сбрасываем дату ТОЛЬКО если НЕ стоит галочка "запомнить"
+    if (!state.opDateRemembered) {
+        _opSelectedDate = null;
+    }
 
     saveState();
     hideModal();
@@ -1151,6 +1240,7 @@ function showModal(html) {
     overlay.classList.add('visible');
     overlay.scrollTop = 0;
     modalVisible = true;
+    initDatePickers();
 
     if (!_modalHistoryPushed) {
         try { history.pushState({ fsModal: true }, ''); _modalHistoryPushed = true; } catch (_) {}
@@ -1223,9 +1313,8 @@ function applyOpDate() {
     var newIso = readDatePicker('opDate', _opSelectedDate || new Date().toISOString());
     _opSelectedDate = newIso;
     hideModal();
-    // Обновляем только кнопку даты, не перерисовывая всё поле ввода
-    var btn = document.querySelector('[data-action="op-date-open"]');
-    if (btn) btn.innerHTML = '📅 ' + formatDate(newIso);
+    var lbl = document.getElementById('opDateLabel');
+    if (lbl) lbl.textContent = formatDate(newIso);
     else renderBalance(document.getElementById('mainContent'));
 }
 /* ============ TAB: DEBTS ============ */
@@ -2240,10 +2329,16 @@ function renderAnalytics(c) {
     else { avgUnitLabel = '/год'; avgUnitCount = daysInPeriod / 365; }
     var avgExpense = totalExpense / Math.max(1, avgUnitCount);
 
-    var html =
+        var html =
         '<div class="card">' + tfHtml +
+            '<div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">' +
+                '<button type="button" class="btn-full btn-outline" style="margin:0; padding:8px; width:44px; height:44px; font-size:18px;" data-action="chart-prev">←</button>' +
+                '<span style="color:var(--dim); font-size:12px; font-weight:600;">График</span>' +
+                '<button type="button" class="btn-full btn-outline" style="margin:0; padding:8px; width:44px; height:44px; font-size:18px;" data-action="chart-next">→</button>' +
+            '</div>' +
             '<div class="chart-wrap"><canvas class="chart-canvas" id="chartCanvas"></canvas></div>' +
             '<div class="analytics-summary">' +
+                /* ... остальная часть summary остаётся как было ... */
                 '<div class="as-row"><span>Доходы за период</span><b class="pos">+' + fmt(totalIncome) + '</b></div>' +
                 '<div class="as-row"><span>Расходы за период</span><b class="neg">−' + fmt(totalExpense) + '</b></div>' +
                 '<div class="as-row"><span>Итог</span><b class="' + netClass + '">' + netSign + fmt(netChange) + '</b></div>' +
@@ -2616,6 +2711,39 @@ var ACTIONS = {
     'period-open':  function ()   { openPeriodPicker(); },
     'period-apply': function ()   { applyPeriod(); },
     'preset-period': function (el) { applyPeriodPreset(el.getAttribute('data-preset')); },
+        'op-date-toggle-remember': function () {
+        state.opDateRemembered = !state.opDateRemembered;
+        saveState();
+        var pin = document.getElementById('opDatePin');
+        if (pin) {
+            if (state.opDateRemembered) {
+                pin.style.background = 'rgba(0,210,255,0.15)';
+                pin.style.borderColor = 'var(--blue)';
+                pin.style.color = 'var(--blue)';
+            } else {
+                pin.style.background = 'transparent';
+                pin.style.borderColor = 'var(--border)';
+                pin.style.color = 'var(--dim)';
+                _opSelectedDate = null;
+                var lbl = document.getElementById('opDateLabel');
+                if (lbl) lbl.textContent = 'Сегодня';
+            }
+        }
+    },
+    'chart-prev': function() {
+        chartViewOffset += 7;
+        var maxOffset = Math.max(0, chartSlotsCache.length - 10);
+        chartViewOffset = Math.max(0, Math.min(maxOffset, chartViewOffset));
+        var canvas = document.getElementById('chartCanvas');
+        if (canvas) drawChart(canvas, chartSlotsCache, chartTfCache, chartViewOffset);
+    },
+    'chart-next': function() {
+        chartViewOffset -= 7;
+        var maxOffset = Math.max(0, chartSlotsCache.length - 10);
+        chartViewOffset = Math.max(0, Math.min(maxOffset, chartViewOffset));
+        var canvas = document.getElementById('chartCanvas');
+        if (canvas) drawChart(canvas, chartSlotsCache, chartTfCache, chartViewOffset);
+    },
     
     // Аналитика: периоды категорий
     'cat-month-prev': function () { 
@@ -2790,40 +2918,6 @@ function bindEvents() {
             else hideChartTooltip();
         }
     });
-
-    // Перетаскивание графика (мышь)
-    document.addEventListener('mousedown', function(e) {
-        if (e.target.id === 'chartCanvas') { _chartIsDragging = true; _chartDragX = e.clientX; e.target.style.cursor = 'grabbing'; }
-    });
-    document.addEventListener('mousemove', function(e) {
-        if (!_chartIsDragging) return;
-        var dx = e.clientX - _chartDragX; _chartDragX = e.clientX;
-        if (Math.abs(dx) > 3) {
-            chartViewOffset -= Math.round(dx / 10); // Чувствительность
-            var maxOffset = Math.max(0, chartSlotsCache.length - 10);
-            chartViewOffset = Math.max(0, Math.min(maxOffset, chartViewOffset));
-            var canvas = document.getElementById('chartCanvas');
-            if (canvas) drawChart(canvas, chartSlotsCache, chartTfCache, chartViewOffset);
-        }
-    });
-    document.addEventListener('mouseup', function() { if (_chartIsDragging) { _chartIsDragging = false; var c = document.getElementById('chartCanvas'); if(c) c.style.cursor = 'grab'; } });
-
-    // Перетаскивание графика (тач)
-    document.addEventListener('touchstart', function(e) {
-        if (e.target.id === 'chartCanvas') { _chartIsDragging = true; _chartDragX = e.touches[0].clientX; }
-    }, { passive: true });
-    document.addEventListener('touchmove', function(e) {
-        if (!_chartIsDragging) return;
-        var dx = e.touches[0].clientX - _chartDragX; _chartDragX = e.touches[0].clientX;
-        if (Math.abs(dx) > 3) {
-            chartViewOffset -= Math.round(dx / 5); // Чувствительность тача
-            var maxOffset = Math.max(0, chartSlotsCache.length - 10);
-            chartViewOffset = Math.max(0, Math.min(maxOffset, chartViewOffset));
-            var canvas = document.getElementById('chartCanvas');
-            if (canvas) drawChart(canvas, chartSlotsCache, chartTfCache, chartViewOffset);
-        }
-    }, { passive: true });
-    document.addEventListener('touchend', function() { _chartIsDragging = false; });
 
     window.addEventListener('resize', function () {
         if (currentTab === 'analytics') {
