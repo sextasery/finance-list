@@ -1581,7 +1581,7 @@ function renderShopping(c) {
             if (firstItem) selectedCategory = firstItem.categoryId;
         }
 
-        html += '<div class="history-stagger">';
+        html += '<div>';
         for (var i = 0; i < state.shopping.length; i++) {
             var it = state.shopping[i];
             var isChecked = shoppingSelected.indexOf(it.id) !== -1;
@@ -1611,21 +1611,58 @@ function toggleShoppingItem(id) {
     if (!item) return;
     var idx = shoppingSelected.indexOf(id);
 
+    // 1. Если уже выбрано — снимаем галочку
     if (idx !== -1) {
         shoppingSelected.splice(idx, 1);
-    } else {
-        if (shoppingSelected.length > 0) {
-            var firstItem = state.shopping.filter(function (it) { return it.id === shoppingSelected[0]; })[0];
-            if (firstItem && firstItem.categoryId !== item.categoryId) {
-                var el = document.querySelector('[data-id="' + id + '"]');
-                if (el) { el.classList.add('flash-new', 'flash-expense'); setTimeout(function () { el.classList.remove('flash-new', 'flash-expense'); }, 900); }
-                return;
+        var el = document.querySelector('.shopping-item[data-id="' + id + '"]');
+        if (el) el.classList.remove('checked');
+
+        // Если сняли последнюю — разблокируем все остальные
+        if (shoppingSelected.length === 0) {
+            var allItems = document.querySelectorAll('.shopping-item');
+            for (var i = 0; i < allItems.length; i++) allItems[i].classList.remove('blocked');
+            hideFloatingPanel();
+        } else {
+            var fpInfo = document.querySelector('.floating-panel .fp-info');
+            if (fpInfo) fpInfo.textContent = 'Выбрано: ' + shoppingSelected.length;
+        }
+        return;
+    }
+
+    // 2. Если ставим галочку — проверяем категорию ТОЛЬКО если это не первая галочка
+    if (shoppingSelected.length > 0) {
+        var firstItem = state.shopping.filter(function (it) { return it.id === shoppingSelected[0]; })[0];
+        if (firstItem && firstItem.categoryId !== item.categoryId) {
+            // Разные категории — просто мигаем элементом, БЕЗ перерисовки списка
+            var el = document.querySelector('.shopping-item[data-id="' + id + '"]');
+            if (el) {
+                el.classList.add('flash-new', 'flash-expense');
+                setTimeout(function () { el.classList.remove('flash-new', 'flash-expense'); }, 900);
+            }
+            return;
+        }
+    }
+
+    // 3. Добавляем в массив и ставим класс
+    shoppingSelected.push(id);
+    var el = document.querySelector('.shopping-item[data-id="' + id + '"]');
+    if (el) el.classList.add('checked');
+
+    // Если это ПЕРВОЕ выделение — блокируем все остальные категории
+    if (shoppingSelected.length === 1) {
+        var allItems = document.querySelectorAll('.shopping-item');
+        for (var i = 0; i < allItems.length; i++) {
+            var itemId = allItems[i].getAttribute('data-id');
+            var sItem = state.shopping.filter(function(x){return x.id === itemId;})[0];
+            if (sItem && sItem.categoryId !== item.categoryId) {
+                allItems[i].classList.add('blocked');
             }
         }
-        shoppingSelected.push(id);
+        showFloatingPanel('shopping');
+    } else {
+        var fpInfo = document.querySelector('.floating-panel .fp-info');
+        if (fpInfo) fpInfo.textContent = 'Выбрано: ' + shoppingSelected.length;
     }
-    renderShopping(document.getElementById('mainContent'));
-    if (shoppingSelected.length > 0) showFloatingPanel(); else hideFloatingPanel();
 }
 
 function showFloatingPanel() {
@@ -1739,7 +1776,13 @@ function shoppingPickCat(catId) {
     var nameEl = document.getElementById('shopName'), name = nameEl ? nameEl.value : '';
     var checkbox = document.getElementById('shopHasDate');
     _shopTempState = { name: name, catId: catId, hasDate: !!(checkbox && checkbox.checked), dateIso: checkbox && checkbox.checked ? new Date().toISOString() : null };
+    
+    var overlay = document.getElementById('modalOverlay');
+    var scrollPos = overlay.scrollTop;
+    
     showAddShoppingWithState(null);
+    
+    setTimeout(function() { overlay.scrollTop = scrollPos; }, 0);
 }
 
 function saveShopping(id) {
@@ -1893,7 +1936,18 @@ function editPickCategory(catId) {
     if (!_editState.id) return;
     var item = state.history.filter(function (h) { return h.id === _editState.id; })[0];
     if (!item) return;
-    captureEditFields(); _editState.catId = catId; renderEditHistoryModal(item);
+    
+    captureEditFields(); 
+    _editState.catId = catId; 
+    
+    // Запоминаем позицию скролла перед перерисовкой
+    var overlay = document.getElementById('modalOverlay');
+    var scrollPos = overlay.scrollTop;
+    
+    renderEditHistoryModal(item);
+    
+    // Возвращаем на место после перерисовки
+    setTimeout(function() { overlay.scrollTop = scrollPos; }, 0);
 }
 
 function saveEditedHistory(id) {
