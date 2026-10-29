@@ -941,16 +941,16 @@ function renderBalance(c) {
             '</button>' +
         '</div>';
 
-    var selectionBarHtml = '';
+        var selectionBarHtml = '';
     if (selectionMode && selectedIds.length > 0) {
         selectionBarHtml =
             '<div class="selection-bar">' +
                 '<span class="sb-count">Выбрано: ' + selectedIds.length + '</span>' +
-                '<button type="button" data-action="bulk-edit-category">🏷️ Категория</button>' +
-                '<button type="button" data-action="bulk-edit-date">📅 Дата</button>' +
-                '<button type="button" data-action="bulk-edit-name">✏️ Название</button>' +
-                '<button type="button" class="danger" data-action="bulk-delete">🗑️ Удалить</button>' +
-                '<button type="button" data-action="exit-selection">✕ Отмена</button>' +
+                '<button type="button" data-action="bulk-edit-category" title="Категория">🏷️</button>' +
+                '<button type="button" data-action="bulk-edit-date" title="Дата">📅</button>' +
+                '<button type="button" data-action="bulk-edit-name" title="Название">✏️</button>' +
+                '<button type="button" class="danger" data-action="bulk-delete" title="Удалить">🗑️</button>' +
+                '<button type="button" class="sb-close" data-action="exit-selection" title="Отмена">✕</button>' +
             '</div>';
     }
 

@@ -651,3 +651,77 @@ input[type="file"] { display: none; }
 .history-stagger > *:nth-child(15) { animation-delay: 420ms; }
 .history-stagger > *:nth-child(16) { animation-delay: 450ms; }
 @keyframes fsRowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ПАНЕЛЬ ВЫДЕЛЕНИЯ ОПЕРАЦИЙ */
+.selection-bar {
+    position: sticky;
+    top: 6px;
+    z-index: 50;
+    background: var(--card);
+    border: 1px solid var(--blue);
+    border-radius: 12px;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: fsBarIn 0.3s var(--ease);
+}
+
+@keyframes fsBarIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.selection-bar .sb-count {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--blue);
+    margin-right: auto; /* прижимает кнопки вправо */
+    white-space: nowrap;
+}
+
+.selection-bar button {
+    background: rgba(0,210,255,0.1);
+    border: 1px solid rgba(0,210,255,0.25);
+    color: var(--text);
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.selection-bar button:active {
+    background: rgba(0,210,255,0.2);
+    transform: scale(0.95);
+}
+
+.selection-bar button.danger {
+    background: rgba(255,71,87,0.1);
+    border-color: rgba(255,71,87,0.3);
+    color: var(--red);
+}
+
+.selection-bar button.danger:active {
+    background: rgba(255,71,87,0.2);
+}
+
+.selection-bar button.sb-close {
+    background: transparent;
+    border-color: transparent;
+    color: var(--dim);
+    font-size: 18px;
+}
+
+.selection-bar button.sb-close:active {
+    background: rgba(255,255,255,0.1);
+    color: var(--text);
+}
