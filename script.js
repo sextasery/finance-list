@@ -628,8 +628,22 @@ function toggleSelect(id) {
     var idx = selectedIds.indexOf(id);
     if (idx === -1) selectedIds.push(id);
     else selectedIds.splice(idx, 1);
-    if (selectedIds.length === 0) { selectionMode = false; selectedIds = []; }
-    renderBalance(document.getElementById('mainContent'));
+
+    if (selectedIds.length === 0) { 
+        exitSelectionMode(); 
+        return; 
+    }
+
+    // Меняем ТОЛЬКО класс нажатого элемента (без renderBalance!)
+    var el = document.querySelector('.list-item[data-id="' + id + '"]');
+    if (el) {
+        if (idx === -1) el.classList.add('selected');
+        else el.classList.remove('selected');
+    }
+
+    // Обновляем счетчик на плавающей панели
+    var fpInfo = document.querySelector('.floating-panel .fp-info');
+    if (fpInfo) fpInfo.textContent = 'Выбрано: ' + selectedIds.length;
 }
 
 function exitSelectionMode() {
@@ -1665,13 +1679,25 @@ function toggleShoppingItem(id) {
     }
 }
 
-function showFloatingPanel() {
+function showFloatingPanel(mode) {
     var panel = document.getElementById('floatingPanel');
     if (!panel) return;
-    panel.innerHTML =
-        '<div class="fp-info">Выбрано: ' + shoppingSelected.length + '</div>' +
-        '<button type="button" class="fp-btn" data-action="shopping-convert">Создать</button>' +
-        '<button type="button" class="fp-btn" style="background:transparent;border:1px solid var(--dim);color:var(--dim);" data-action="shopping-deselect">Снять</button>';
+    
+    if (mode === 'history') {
+        panel.innerHTML =
+            '<div class="fp-info">Выбрано: ' + selectedIds.length + '</div>' +
+            '<button type="button" class="fp-btn" style="font-size:12px; padding:8px;" data-action="bulk-edit-category">🏷️ Кат.</button>' +
+            '<button type="button" class="fp-btn" style="font-size:12px; padding:8px;" data-action="bulk-edit-date">📅 Дата</button>' +
+            '<button type="button" class="fp-btn" style="font-size:12px; padding:8px;" data-action="bulk-edit-name">✏️ Имя</button>' +
+            '<button type="button" class="fp-btn" style="background:var(--red);color:#fff; font-size:12px; padding:8px;" data-action="bulk-delete">🗑️</button>' +
+            '<button type="button" class="fp-btn" style="background:transparent;border:1px solid var(--dim);color:var(--dim); font-size:12px; padding:8px;" data-action="exit-selection">✕</button>';
+    } else {
+        panel.innerHTML =
+            '<div class="fp-info">Выбрано: ' + shoppingSelected.length + '</div>' +
+            '<button type="button" class="fp-btn" data-action="shopping-convert">Создать</button>' +
+            '<button type="button" class="fp-btn" style="background:transparent;border:1px solid var(--dim);color:var(--dim);" data-action="shopping-deselect">Снять</button>';
+    }
+    
     panel.classList.add('visible');
     panel.style.display = 'flex';
 }
@@ -2080,9 +2106,10 @@ function bulkEditCategory() {
         return;
     }
 
-    function makeBtn(cat, type) {
+        function makeBtn(cat, type) {
         return '<button type="button" data-action="bulk-apply-category" data-id="' + esc(cat.id) + '" data-type="' + type + '" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid #2a3548;border-radius:10px;color:#e0e6ed;font-size:15px;font-family:inherit;cursor:pointer;min-height:52px;text-align:left;box-sizing:border-box;">' +
-            '<span style="width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:20px;background:' + cat.color + '33;flex-shrink:0;">' + cat.icon + '</span><span style="font-weight:500;">' + esc(cat.name) + '</span></button>';
+            '<span class="cat-badge ' + cat.cssClass + '" style="font-size:18px; padding:4px 8px; border-radius:6px;">' + cat.icon + '</span>' +
+            '<span style="font-weight:500;">' + esc(cat.name) + '</span></button>';
     }
 
     var html = '<h3>Сменить категорию</h3><p style="font-size:12px;color:#9aa9c0;margin:0 0 14px;line-height:1.4;">Для ' + selectedIds.length + ' операций.</p>';
