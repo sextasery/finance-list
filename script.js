@@ -590,8 +590,7 @@ function renderHistoryItem(h) {
     var badgeHtml = '';
     if (h.categoryId) {
         var cat = getCategoryAny(h.categoryId);
-        if (cat) badgeHtml = '<span class="cat-badge ' + cat.cssClass + '">' + cat.icon + ' ' + esc(cat.name) + '</span>';
-    }
+            if (cat) badgeHtml = '<span class="cat-badge ' + cat.cssClass + '"><span class="cat-icon">' + cat.icon + '</span>' + esc(cat.name) + '</span>';
 
     var isSelected = selectedIds.indexOf(h.id) !== -1;
     var leftContent = 
