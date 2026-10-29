@@ -590,7 +590,8 @@ function renderHistoryItem(h) {
     var badgeHtml = '';
     if (h.categoryId) {
         var cat = getCategoryAny(h.categoryId);
-            if (cat) badgeHtml = '<span class="cat-badge ' + cat.cssClass + '"><span class="cat-icon">' + cat.icon + '</span>' + esc(cat.name) + '</span>';
+        if (cat) badgeHtml = '<span class="cat-badge ' + cat.cssClass + '"><span class="cat-icon">' + cat.icon + '</span>' + esc(cat.name) + '</span>';
+    } // <--- ВОТ ЭТУ СКОБКУ ТЫ ПОТЕРЯЛ
 
     var isSelected = selectedIds.indexOf(h.id) !== -1;
     var leftContent = 
@@ -1601,7 +1602,7 @@ function renderShopping(c) {
             var isBlocked = anySelected && !isChecked && it.categoryId !== selectedCategory;
             var cat = getCategoryAny(it.categoryId) || getCategory(DEFAULT_CATEGORY_ID);
 
-            var badgeHtml = cat ? '<div class="item-category"><span class="cat-badge ' + cat.cssClass + '">' + cat.icon + ' ' + esc(cat.name) + '</span></div>' : '';
+            var badgeHtml = cat ? '<div class="item-category"><span class="cat-badge ' + cat.cssClass + '"><span class="cat-icon">' + cat.icon + '</span>' + esc(cat.name) + '</span></div>' : '';
             var dateHtml = it.dateIso ? '<span class="shopping-date">' + formatDate(it.dateIso) + '</span>' : '';
 
             html +=
