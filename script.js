@@ -641,7 +641,11 @@ function toggleSelect(id) {
         else el.classList.remove('selected');
     }
 
-    // Обновляем счетчик на плавающей панели
+    // Обновляем счетчик в ВЕРХНЕЙ панели (selection-bar)
+    var sbCount = document.querySelector('.selection-bar .sb-count');
+    if (sbCount) sbCount.textContent = 'Выбрано: ' + selectedIds.length;
+
+    // Обновляем счетчик в НИЖНЕЙ панели (floating-panel), если она есть
     var fpInfo = document.querySelector('.floating-panel .fp-info');
     if (fpInfo) fpInfo.textContent = 'Выбрано: ' + selectedIds.length;
 }
